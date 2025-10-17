@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Zeek-min DL for high ACC (realtime-compatible)
-- Chỉ dùng field có trong Zeek conn.log (+ features dẫn xuất an toàn)
-- Kỹ thuật đặc trưng: totals, ratios, log1p, port bucket + embedding
-- Huấn luyện vì ACC: thêm binary_accuracy, EarlyStopping theo val_binary_accuracy
-- Tuning ngưỡng kiểu maximin (TRAIN & VAL) với lưới quantile (nhanh)
-- Fix: tách dataset TRAIN cho fit (shuffle=True) và eval (shuffle=False) để predict khớp thứ tự
 
 Artifacts:
   train_val_loss.png, train_val_auc.png
