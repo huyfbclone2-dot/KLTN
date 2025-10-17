@@ -52,9 +52,7 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
 
 ### 3.2. Bảng ánh xạ CICIDS → Zeek
 
-> Bảng chỉ chứa **từ khoá ngắn gọn** (không mô tả dài dòng trong bảng).
-
-| CICIDS (ví dụ)                        | Tên chuẩn       | Zeek `conn.log` |
+| CICIDS                                | Tên chuẩn       | Zeek `conn.log` |
 | ------------------------------------- | --------------- | --------------- |
 | SourceIP / Src IP                     | SourceIP        | id.orig_h       |
 | DestinationIP / Dst IP                | DestinationIP   | id.resp_h       |
@@ -276,18 +274,10 @@ Tuỳ chọn ghi:
 * [ ] Theo dõi **tỷ lệ alert** theo thời gian (drift).
 * [ ] Định kỳ **retrain** khi log thay đổi.
 
----
-
-## 14. Lưu ý & mở rộng
-
-* **Mất cân bằng dữ liệu**: cân nhắc `class_weight` hoặc resampling.
-* **Bổ sung đặc trưng**: ASN, cờ TCP (SYN/FIN), entropy, v.v. nếu log đủ.
-* **Bảo mật**: ẩn/giải danh IP theo yêu cầu; quản lý quyền truy cập log.
-* **Tái lập**: cố định seed, ghi version Python/TF, đóng băng vocab/mean-var.
 
 ---
 
-## 15. Sự cố thường gặp
+## 14. Sự cố thường gặp
 
 * Sai thứ tự feature → kết quả lệch.
 * Duration sai đơn vị → tốc độ “vọt” bất thường.
