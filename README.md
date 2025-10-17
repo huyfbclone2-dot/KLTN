@@ -265,19 +265,7 @@ Tuỳ chọn ghi:
 
 ---
 
-## 13. Kiểm thử & vận hành (checklist)
-
-* [ ] So khớp **mapping alias** với file CSV cụ thể.
-* [ ] Kiểm tra **đơn vị thời lượng** (s vs ns).
-* [ ] Soát **thứ tự feature** và dtype trước khi predict.
-* [ ] Benchmark **latency**: parse → feature → predict.
-* [ ] Theo dõi **tỷ lệ alert** theo thời gian (drift).
-* [ ] Định kỳ **retrain** khi log thay đổi.
-
-
----
-
-## 14. Sự cố thường gặp
+## 13. Sự cố thường gặp
 
 * Sai thứ tự feature → kết quả lệch.
 * Duration sai đơn vị → tốc độ “vọt” bất thường.
