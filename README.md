@@ -1,89 +1,142 @@
-# Hướng dẫn chi tiết dự án KLTN_project_AI_code
+# KLTN_project_AI_code — Hệ thống phát hiện xâm nhập từ log Zeek (CICIDS)
 
 ## 1. Mục tiêu dự án
 
-Dự án **KLTN_project_AI_code** xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log **Zeek** và bộ dữ liệu **CICIDS**. Mục tiêu: phân loại kết nối **benign / attack** với độ chính xác cao và có thể áp dụng trên log thời gian thực.
+Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log **Zeek** và bộ dữ liệu **CICIDS**. Hệ thống:
 
-## 2. Kiến trúc tổng thể
+* Phân loại **benign / attack** với mô hình **Residual MLP** (wide & deep).
+* Huấn luyện offline trên CSV (CICIDS), sau đó **suy luận real-time** trên `conn.log` của Zeek.
+* Dễ tái lập, có hướng dẫn triển khai và đánh giá.
 
-1. **Chuẩn bị & tiền xử lý**: đọc CSV (CICIDS), chuẩn hóa tên cột, ánh xạ alias, trích xuất đặc trưng.
-2. **Huấn luyện**: mô hình Residual MLP (wide & deep) với 20 đặc trưng số + 2 đặc trưng phân loại; chia train/val/test; chọn ngưỡng tối ưu.
-3. **Suy luận thời gian thực**: đọc `conn.log` của Zeek, tái tạo đặc trưng như lúc train, nạp mô hình, chấm điểm, phát cảnh báo.
+---
 
-## 3. Bảng ánh xạ CICIDS → Zeek (các cột chính)
+## 2. Kiến trúc tổng thể (sơ đồ khối)
 
-| Trường CICIDS (ví dụ)                    | Tên chuẩn dùng khi train | Trường Zeek trong `conn.log` | Ghi chú                 |
-| ---------------------------------------- | ------------------------ | ---------------------------- | ----------------------- |
-| `SourceIP`, `Src IP`                     | `SourceIP`               | `id.orig_h`                  | IP nguồn                |
-| `DestinationIP`, `Dst IP`                | `DestinationIP`          | `id.resp_h`                  | IP đích                 |
-| `SourcePort`, `Src Port`                 | `SourcePort`             | `id.orig_p`                  | Cổng nguồn              |
-| `DestinationPort`, `Dst Port`, `dport`   | `DestinationPort`        | `id.resp_p`                  | Cổng đích (dùng bucket) |
-| `FlowDuration`                           | `Duration`               | `duration`                   | ns → giây               |
-| `TotalFwdPackets`                        | `orig_pkts`              | `orig_pkts`                  | Số gói chiều đi         |
-| `TotalBackwardPackets`                   | `resp_pkts`              | `resp_pkts`                  | Số gói chiều về         |
-| `TotalLengthFwdPackets`, `Tot Fwd Bytes` | `orig_bytes`             | `orig_bytes`                 | Tổng bytes chiều đi     |
-| `TotalLengthBwdPackets`, `Tot Bwd Bytes` | `resp_bytes`             | `resp_bytes`                 | Tổng bytes chiều về     |
-| `Protocol`                               | `Protocol`               | `proto`                      | tcp/udp/icmp/other      |
+```
+[CICIDS CSV / Zeek conn.log]
+            │
+            ▼
+  Chuẩn hoá tên cột + Ánh xạ alias
+            │
+            ▼
+  Trích xuất đặc trưng (20 số + 2 phân loại)
+            │
+            ├─(Train)─> Normalization + Embedding
+            │           │
+            │           ▼
+            │        Residual MLP
+            │           │
+            │           ▼
+            │        Xác suất attack ∈ [0..1]
+            │           │
+            │           ▼
+            │    Chọn ngưỡng (threshold) tối ưu
+            │
+            └─(Realtime) Nạp model + threshold
+                       │
+                       ▼
+               Dự đoán → So sánh ngưỡng
+                       │
+                       ▼
+                Gán nhãn + Ghi kết quả
+```
 
-> Lưu ý: tên cột CICIDS có thể khác nhau tùy file; code có bảng **alias** để dò các biến thể phổ biến, sau đó đổi về tên chuẩn trước khi trích xuất đặc trưng.
+---
 
-## 4. Kỹ thuật đặc trưng (Feature engineering)
+## 3. Dữ liệu & Chuẩn hoá cột (alias)
 
-Sinh **20 đặc trưng số** + **2 đặc trưng phân loại** từ các trường chuẩn:
+### 3.1. Chuẩn hoá
 
-* **Số**: `duration`, `orig_bytes`, `resp_bytes`, `orig_pkts`, `resp_pkts`, `total_bytes`, `total_pkts`, `bytes_ratio`, `pkts_ratio`, `bytes_per_sec`, `pkts_per_sec`, `bytes_per_pkt`, `pkts_per_byte`, và các biến **log1p** tương ứng (giảm lệch).
-* **Phân loại**:
+* Chuẩn hoá tên cột: bỏ khoảng trắng/ký tự lạ, về *snake_case*.
+* Hợp nhất các biến thể tên (alias) từ CICIDS/Zeek về một **tên chuẩn** dùng nội bộ.
 
-  * `resp_port_bucket`: bucket hóa cổng đích (well-known 0–1023, registered 1024–49151, dynamic 49152–65535).
-  * `proto`: chuẩn hóa về `tcp / udp / icmp / other`.
+### 3.2. Bảng ánh xạ CICIDS → Zeek
+
+> Bảng chỉ chứa **từ khoá ngắn gọn** (không mô tả dài dòng trong bảng).
+
+| CICIDS (ví dụ)                        | Tên chuẩn       | Zeek `conn.log` |
+| ------------------------------------- | --------------- | --------------- |
+| SourceIP / Src IP                     | SourceIP        | id.orig_h       |
+| DestinationIP / Dst IP                | DestinationIP   | id.resp_h       |
+| SourcePort / Src Port                 | SourcePort      | id.orig_p       |
+| DestinationPort / Dst Port / dport    | DestinationPort | id.resp_p       |
+| FlowDuration                          | Duration        | duration        |
+| TotalFwdPackets                       | orig_pkts       | orig_pkts       |
+| TotalBackwardPackets                  | resp_pkts       | resp_pkts       |
+| TotalLengthFwdPackets / Tot Fwd Bytes | orig_bytes      | orig_bytes      |
+| TotalLengthBwdPackets / Tot Bwd Bytes | resp_bytes      | resp_bytes      |
+| Protocol                              | Protocol        | proto           |
+
+> Ghi chú: `Duration` nếu là nano-second thì quy đổi về **giây**.
+
+---
+
+## 4. Trích xuất đặc trưng (feature engineering)
+
+Sinh **20 đặc trưng số** + **2 đặc trưng phân loại**.
+
+**Ký hiệu:**
+`ob = orig_bytes`, `rb = resp_bytes`, `op = orig_pkts`, `rp = resp_pkts`, `T = duration (s)`, `ε` rất nhỏ tránh chia 0.
+
+**Biến gốc (số):** `duration`, `ob`, `rb`, `op`, `rp`.
+
+**Tổng:**
+
+* `total_bytes = ob + rb`
+* `total_pkts = op + rp`
+
+**Tỷ lệ:**
+
+* `bytes_ratio = ob / (rb + ε)`
+* `pkts_ratio = op / (rp + ε)`
+
+**Tốc độ:**
+
+* `bytes_per_sec = total_bytes / (T + ε)`
+* `pkts_per_sec = total_pkts / (T + ε)`
+
+**Mật độ:**
+
+* `bytes_per_pkt = total_bytes / (total_pkts + ε)`
+* `pkts_per_byte = total_pkts / (total_bytes + ε)`
+
+**Phi tuyến (ổn định thang đo):**
+
+* `log1p` của: `ob, rb, op, rp, total_bytes, total_pkts, bytes_per_sec, pkts_per_sec, bytes_per_pkt, pkts_per_byte`.
+
+**Phân loại (chuỗi):**
+
+* `resp_port_bucket`: bucket hoá `id.resp_p` → `well_known`(0–1023), `registered`(1024–49151), `dynamic`(49152–65535).
+* `proto`: chuẩn hoá về `tcp / udp / icmp / other`.
+
+---
 
 ## 5. Kiến trúc Neural Network (Residual MLP)
 
-* **Đầu vào**:
+* **Đầu vào:**
 
-  * Nhánh **số** → `Normalization` (mean/var từ train).
-  * Nhánh **chuỗi** → `StringLookup` (từ vocab train) → `Embedding` (ví dụ `proto` dim=6, `resp_port_bucket` dim=4).
-* **Ghép nhánh** → chuỗi **khối Residual MLP** (mặc định 5 khối): Dense → BN → ReLU → Dropout → Dense (giảm chiều) + **skip connection** (nếu cần).
-* **Đầu ra**: Dense(96) → Dense(1, sigmoid).
-* **Huấn luyện**: Optimizer Adam, `BinaryCrossentropy`, metric `BinaryAccuracy`, `AUC`; có `EarlyStopping`, `ReduceLROnPlateau`, `ModelCheckpoint`.
+  * Nhánh **số** → `Normalization` (mean/var từ **train**).
+  * Nhánh **chuỗi** → `StringLookup` (vocabulary từ **train**) → `Embedding` (ví dụ: `proto` dim=6, `resp_port_bucket` dim=4).
+* **Ghép nhánh** → **n khối Residual MLP** (mặc định 5):
+  `Dense → BatchNorm → ReLU → Dropout → Dense(giảm chiều)` + **skip connection**.
+* **Đầu ra:** `Dense(96) → Dense(1, sigmoid)` → xác suất `p ∈ [0..1]`.
+* **Huấn luyện:** Adam, `BinaryCrossentropy`, metric `BinaryAccuracy` + `AUC`; callbacks `EarlyStopping`, `ReduceLROnPlateau`, `ModelCheckpoint`.
 
-## 6. Quy trình huấn luyện
+---
 
-1. Chuẩn hóa tên cột, ánh xạ alias → lấy đúng cột chuẩn.
-2. Tính đặc trưng số và phân loại; tách **train/val** (80/20, stratify).
-3. Tính thống kê chuẩn hóa và vocab embedding từ **train**.
-4. Tạo `tf.data.Dataset` theo `--batch`.
-5. Train mô hình (mặc định ~40 epoch) + callbacks.
-6. **Tối ưu ngưỡng (threshold)**: dùng tiêu chí *maximin* (tối đa hóa min(train_acc, val_acc)) để chọn ngưỡng quyết định.
-7. Lưu mô hình tốt nhất (`.keras`), `metrics.json`, `metrics_threshold.json`, biểu đồ loss/AUC.
+## 6. Quy trình huấn luyện (offline)
 
-## 7. Thuật toán suy luận (Inference)
+1. Chuẩn hoá tên cột, **ánh xạ alias**.
+2. Tạo **20 số + 2 phân loại** từ CSV CICIDS.
+3. Chia **train/val** (80/20, stratify).
+4. Tính thống kê chuẩn hoá & vocab embedding trên **train**.
+5. Tạo `tf.data.Dataset` theo `--batch`.
+6. Train mô hình (≈40 epoch, tuỳ chỉnh) + callbacks.
+7. Quét **ngưỡng** (threshold) và chọn theo chiến lược **maximin**:
+   `τ* = argmax_τ min(acc_train(τ), acc_val(τ))`.
+8. Lưu `best.keras`, `metrics.json`, `metrics_threshold.json`, biểu đồ loss/AUC.
 
-> **Quan trọng:** **logic suy luận/đặc trưng** nằm trong **file huấn luyện** `train_cicids_zeek.py`.
-> **`new.py`** là **trình đọc `conn.log` real-time** và **áp dụng** mô hình đã train.
-
-Luồng chạy thực tế:
-
-1. **Đọc log**: `new.py` đọc `conn.log` (NDJSON hoặc TSV) theo stream.
-2. **Ánh xạ cột**: dùng alias để khớp cột thực tế ↔ tên chuẩn.
-3. **Trích xuất đặc trưng**: tạo đúng 20 số + 2 phân loại như lúc train.
-4. **Vector hóa**:
-
-   * **Multi-input**: tạo dict `{input_name: tensor(batch,1)}` cho số/chuỗi.
-   * **Single-input**: tạo ma trận 2D theo thứ tự feature cố định.
-5. **Dự đoán**: `model.predict(...)` → xác suất `[0..1]`.
-6. **Gán nhãn**: so sánh với **threshold** đã lưu → 0/1.
-7. **Ghi kết quả**: JSONL gồm timestamp, score, pred, UID, IP, cổng, duration, proto. Tuỳ chọn `--print_alerts` để in alert; `--stream_all` để ghi cả benign.
-
-## 8. Đánh giá & ngưỡng (Scoring)
-
-* **Báo cáo**: classification report (precision/recall/F1), **confusion matrix**.
-* **Đường cong**: **ROC-AUC**, **PR-AUC**, biểu đồ **loss/AUC** theo epoch.
-* **Ngưỡng tối ưu**: `metrics_threshold.json` lưu giá trị threshold, dùng thống nhất cho inference.
-
-## 9. Cách chạy nhanh
-
-### 9.1 Huấn luyện (ví dụ)
+**Lệnh ví dụ:**
 
 ```bash
 python train_cicids_zeek.py \
@@ -94,9 +147,31 @@ python train_cicids_zeek.py \
   --batch 2048
 ```
 
-Kết quả: `out_dir/best.keras`, `out_dir/metrics.json`, `out_dir/metrics_threshold.json`, biểu đồ loss/AUC, báo cáo test.
+---
 
-### 9.2 Suy luận thời gian thực (đọc Zeek)
+## 7. Thuật toán suy luận (realtime)
+
+> **Quan trọng:** Logic đặc trưng/định dạng đầu vào được định nghĩa ở **train** và được **tái sử dụng** y nguyên khi suy luận.
+
+**Vai trò file:**
+
+* `train_cicids_zeek.py`: định nghĩa đặc trưng, kiến trúc, huấn luyện, lựa chọn ngưỡng.
+* `new.py`: **đọc `conn.log` realtime**, ánh xạ cột, tạo **cùng đặc trưng**, nạp mô hình & ngưỡng, **dự đoán**.
+
+**Quy trình:**
+
+1. Đọc `conn.log` theo stream (NDJSON hoặc TSV).
+2. Ánh xạ cột thực tế ↔ tên chuẩn (alias).
+3. Tạo 20 số + 2 phân loại, xử lý thiếu/ngoại lệ (mặc định an toàn).
+4. **Vector hoá**:
+
+   * **Multi-input**: dict `{input_name: tensor(batch,1)}` cho số/chuỗi.
+   * **Single-input**: ma trận 2D `(batch, n_features)` theo **thứ tự cố định**.
+5. `model.predict(inputs)` → xác suất `p`.
+6. So sánh `p` với `τ*` → `pred ∈ {0,1}`.
+7. Ghi JSONL + (tuỳ chọn) in alert.
+
+**Lệnh ví dụ:**
 
 ```bash
 python new.py \
@@ -107,27 +182,116 @@ python new.py \
   --print_alerts
 ```
 
-Tùy chọn:
+Tuỳ chọn:
 
-* `--override_threshold` thay thế ngưỡng từ file JSON.
-* `--stream_all` ghi cả benign (lưu log điểm số đầy đủ).
+* `--override_threshold` (ghi đè ngưỡng)
+* `--stream_all` (ghi cả benign vào file điểm số)
 
-## 10. Cấu trúc thư mục (gợi ý)
+---
+
+## 8. Cho điểm & Ngưỡng (scoring & thresholding)
+
+* **Xác suất**: đầu ra sigmoid `p = σ(z)`.
+* **Gán nhãn**: `pred = 1` nếu `p ≥ τ*`, ngược lại `0`.
+* **Chọn ngưỡng** (khi train): quét dải ngưỡng, chọn **maximin** để cân bằng train/val.
+* **Báo cáo**:
+
+  * Classification report (precision/recall/F1).
+  * Confusion matrix.
+  * ROC-AUC, PR-AUC.
+  * Biểu đồ loss/AUC theo epoch.
+
+---
+
+## 9. Xử lý **đầu vào** chi tiết
+
+* **Parse NDJSON/TSV** an toàn, log lỗi dòng hỏng.
+* **Đơn vị thời gian**: bảo đảm `duration` theo **giây**.
+* **Thiếu cột**: dùng giá trị mặc định (0 cho số, `other` cho chuỗi), log cảnh báo.
+* **Trật tự/kiểu dữ liệu**: giữ **đúng thứ tự** và dtype như lúc train.
+
+---
+
+## 10. Xử lý **đầu ra** chi tiết
+
+**JSONL** mỗi dòng:
+
+```json
+{
+  "ts": "2025-10-17T09:21:30Z",
+  "score": 0.8432,
+  "pred": 1,
+  "uid": "Cbrg0a3kP8N",
+  "id.orig_h": "10.0.0.5",
+  "id.resp_h": "8.8.8.8",
+  "id.resp_p": 53,
+  "duration": 0.012,
+  "proto": "udp"
+}
+```
+
+Tuỳ chọn ghi:
+
+* `--print_alerts`: chỉ in các dòng `pred=1`.
+* `--stream_all`: ghi toàn bộ điểm số (benign + attack).
+* Tích hợp SIEM: đẩy JSONL sang log pipeline (tuỳ môi trường).
+
+---
+
+## 11. Tham số CLI chính
+
+**Huấn luyện (`train_cicids_zeek.py`):**
+
+* `--train_csv`, `--test_csv`, `--outdir`
+* `--epochs`, `--batch`
+* (khác tuỳ code: seed, depth, width…)
+
+**Suy luận (`new.py`):**
+
+* `--conn_log`, `--model_path`, `--threshold_json`
+* `--out_jsonl`, `--print_alerts`, `--stream_all`, `--override_threshold`
+
+---
+
+## 12. Cấu trúc thư mục gợi ý
 
 ```
 .
-├─ train_cicids_zeek.py     # Train + tính đặc trưng + chọn threshold
+├─ train_cicids_zeek.py     # Train + đặc trưng + threshold
 ├─ new.py                   # Đọc conn.log realtime + áp dụng model
-├─ data/                    # CSV CICIDS (đã chuẩn hóa tên cột)
+├─ data/                    # CSV CICIDS (chuẩn hoá cột)
+├─ output/                  # alerts.jsonl (tuỳ chọn)
 ├─ out_dir/                 # model, metrics, threshold, biểu đồ
 └─ README.md
 ```
 
-## 11. Mở rộng & lưu ý
+---
 
-* **Bổ sung đặc trưng**: thêm IP/ASN/flags nếu log cho phép.
-* **Mất cân bằng**: cân nhắc resample hoặc `class_weight`.
-* **Sản xuất**: giám sát drift; retrain định kỳ; tối ưu batch/latency.
-* **Bảo mật**: ẩn/giải danh IP khi xuất kết quả theo quy định.
+## 13. Kiểm thử & vận hành (checklist)
+
+* [ ] So khớp **mapping alias** với file CSV cụ thể.
+* [ ] Kiểm tra **đơn vị thời lượng** (s vs ns).
+* [ ] Soát **thứ tự feature** và dtype trước khi predict.
+* [ ] Benchmark **latency**: parse → feature → predict.
+* [ ] Theo dõi **tỷ lệ alert** theo thời gian (drift).
+* [ ] Định kỳ **retrain** khi log thay đổi.
 
 ---
+
+## 14. Lưu ý & mở rộng
+
+* **Mất cân bằng dữ liệu**: cân nhắc `class_weight` hoặc resampling.
+* **Bổ sung đặc trưng**: ASN, cờ TCP (SYN/FIN), entropy, v.v. nếu log đủ.
+* **Bảo mật**: ẩn/giải danh IP theo yêu cầu; quản lý quyền truy cập log.
+* **Tái lập**: cố định seed, ghi version Python/TF, đóng băng vocab/mean-var.
+
+---
+
+## 15. Sự cố thường gặp
+
+* Sai thứ tự feature → kết quả lệch.
+* Duration sai đơn vị → tốc độ “vọt” bất thường.
+* Thiếu cột hoặc tên lạ → bật log cảnh báo, cập nhật alias.
+* Ngưỡng không khớp → kiểm tra `metrics_threshold.json` hoặc dùng `--override_threshold`.
+
+
