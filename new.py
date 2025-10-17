@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Zeek conn.log realtime scorer (Keras multi-input, JSON/TSV auto-detect).
-- Hỗ trợ tf.string cho 'proto'
-- Input theo dict {input_name: tf.Tensor} để tránh lỗi optree
-"""
+
 
 import argparse, json, os, time
 from typing import Dict, List, Optional
