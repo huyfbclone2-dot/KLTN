@@ -33,7 +33,7 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
                     Chọn ngưỡng (threshold) tối ưu
                                  │
                                  ▼
-            └─(Realtime) Nạp model + threshold
+              (Realtime) Nạp model + threshold
                             │
                             ▼
                   Dự đoán → So sánh ngưỡng
