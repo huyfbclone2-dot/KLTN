@@ -22,16 +22,17 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
   Trích xuất đặc trưng (20 số + 2 phân loại)
             │
             ├─(Train)─> Normalization + Embedding
-            │                      │
-            │                      ▼
-            │                 Residual MLP
-            │                      │
-            │                      ▼
-            │             Xác suất attack ∈ [0..1]
-            │                      │
-            │                      ▼
-            │        Chọn ngưỡng (threshold) tối ưu
-            │
+                                  │
+                                  ▼
+                             Residual MLP
+                                  │
+                                  ▼
+                         Xác suất attack ∈ [0..1]
+                                  │
+                                  ▼
+                    Chọn ngưỡng (threshold) tối ưu
+                                 │
+                                 ▼
             └─(Realtime) Nạp model + threshold
                             │
                             ▼
