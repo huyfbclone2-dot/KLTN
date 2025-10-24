@@ -1,0 +1,6 @@
+{
+  "threshold_final": 0.601030989359767,
+  "train_acc_tuned": 0.9949269366690975,
+  "val_acc_tuned": 0.9953862119257306,
+  "test_acc_tuned": 0.9951158994449886
+}
