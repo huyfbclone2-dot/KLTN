@@ -1,12 +1,13 @@
+
 # KLTN_project_AI_code — Hệ thống phát hiện xâm nhập từ log Zeek (CICIDS)
 
 ## 1. Mục tiêu dự án
 
 Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log **Zeek** và bộ dữ liệu **CICIDS**. Hệ thống:
 
-* Phân loại **benign / attack** với mô hình **Residual MLP** (wide & deep).
-* Huấn luyện offline trên CSV (CICIDS), sau đó **suy luận real-time** trên `conn.log` của Zeek.
-* Dễ tái lập, có hướng dẫn triển khai và đánh giá.
+- Phân loại **benign / attack** với mô hình **Residual MLP** (wide & deep).
+- Huấn luyện **offline** trên CSV (CICIDS), sau đó **suy luận real-time** trên `conn.log` của Zeek.
+- Dễ tái lập, có hướng dẫn triển khai và đánh giá.
 
 ---
 
@@ -42,14 +43,12 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
                        Gán nhãn + Ghi kết quả
 ```
 
----
-
 ## 3. Dữ liệu & Chuẩn hoá cột (alias)
 
 ### 3.1. Chuẩn hoá
 
-* Chuẩn hoá tên cột: bỏ khoảng trắng/ký tự lạ, về *snake_case*.
-* Hợp nhất các biến thể tên (alias) từ CICIDS/Zeek về một **tên chuẩn** dùng nội bộ.
+- Chuẩn hoá tên cột: bỏ khoảng trắng/ký tự lạ, về *snake_case*.
+- Hợp nhất các biến thể tên (alias) từ CICIDS/Zeek về một **tên chuẩn** dùng nội bộ.
 
 ### 3.2. Bảng ánh xạ CICIDS → Zeek
 
@@ -66,7 +65,7 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
 | TotalLengthBwdPackets / Tot Bwd Bytes | resp_bytes      | resp_bytes      |
 | Protocol                              | Protocol        | proto           |
 
-> Ghi chú: `Duration` nếu là nano-second thì quy đổi về **giây**.
+> **Ghi chú:** Nếu `Duration` ở micro/nano-giây, quy đổi về **giây** trước khi tính đặc trưng.
 
 ---
 
@@ -74,52 +73,44 @@ Xây dựng một hệ thống phát hiện xâm nhập mạng dựa trên log *
 
 Sinh **20 đặc trưng số** + **2 đặc trưng phân loại**.
 
-**Ký hiệu:**
-`ob = orig_bytes`, `rb = resp_bytes`, `op = orig_pkts`, `rp = resp_pkts`, `T = duration (s)`, `ε` rất nhỏ tránh chia 0.
+**Ký hiệu:** `ob = orig_bytes`, `rb = resp_bytes`, `op = orig_pkts`, `rp = resp_pkts`, `T = duration (s)`, `ε` rất nhỏ để tránh chia 0.
 
 **Biến gốc (số):** `duration`, `ob`, `rb`, `op`, `rp`.
 
 **Tổng:**
-
-* `total_bytes = ob + rb`
-* `total_pkts = op + rp`
+- `total_bytes = ob + rb`
+- `total_pkts  = op + rp`
 
 **Tỷ lệ:**
-
-* `bytes_ratio = ob / (rb + ε)`
-* `pkts_ratio = op / (rp + ε)`
+- `bytes_ratio = ob / (rb + ε)`
+- `pkts_ratio  = op / (rp + ε)`
 
 **Tốc độ:**
-
-* `bytes_per_sec = total_bytes / (T + ε)`
-* `pkts_per_sec = total_pkts / (T + ε)`
+- `bytes_per_sec = total_bytes / (T + ε)`
+- `pkts_per_sec  = total_pkts  / (T + ε)`
 
 **Mật độ:**
-
-* `bytes_per_pkt = total_bytes / (total_pkts + ε)`
-* `pkts_per_byte = total_pkts / (total_bytes + ε)`
+- `bytes_per_pkt = total_bytes / (total_pkts + ε)`
+- `pkts_per_byte = total_pkts  / (total_bytes + ε)`
 
 **Phi tuyến (ổn định thang đo):**
-
-* `log1p` của: `ob, rb, op, rp, total_bytes, total_pkts, bytes_per_sec, pkts_per_sec, bytes_per_pkt, pkts_per_byte`.
+- `log1p` cho: `ob, rb, op, rp, total_bytes, total_pkts, bytes_per_sec, pkts_per_sec, bytes_per_pkt, pkts_per_byte`.
 
 **Phân loại (chuỗi):**
-
-* `resp_port_bucket`: bucket hoá `id.resp_p` → `well_known`(0–1023), `registered`(1024–49151), `dynamic`(49152–65535).
-* `proto`: chuẩn hoá về `tcp / udp / icmp / other`.
+- `resp_port_bucket`: bucket hoá `id.resp_p` → `well_known(0–1023)`, `registered(1024–49151)`, `dynamic(49152–65535)`.
+- `proto`: chuẩn hoá về `tcp / udp / icmp / other`.
 
 ---
 
 ## 5. Kiến trúc Neural Network (Residual MLP)
 
-* **Đầu vào:**
-
-  * Nhánh **số** → `Normalization` (mean/var từ **train**).
-  * Nhánh **chuỗi** → `StringLookup` (vocabulary từ **train**) → `Embedding` (ví dụ: `proto` dim=6, `resp_port_bucket` dim=4).
-* **Ghép nhánh** → **n khối Residual MLP** (mặc định 5):
+- **Nhập liệu**
+  - Nhánh **số** → `Normalization` (mean/var từ **train**).
+  - Nhánh **chuỗi** → `StringLookup` (vocabulary từ **train**) → `Embedding` (ví dụ: `proto` dim=6, `resp_port_bucket` dim=4).
+- **Trunk**: Ghép nhánh → **n khối Residual MLP** (mặc định 5):  
   `Dense → BatchNorm → ReLU → Dropout → Dense(giảm chiều)` + **skip connection**.
-* **Đầu ra:** `Dense(96) → Dense(1, sigmoid)` → xác suất `p ∈ [0..1]`.
-* **Huấn luyện:** Adam, `BinaryCrossentropy`, metric `BinaryAccuracy` + `AUC`; callbacks `EarlyStopping`, `ReduceLROnPlateau`, `ModelCheckpoint`.
+- **Đầu ra**: `Dense(96) → Dense(1, sigmoid)` → xác suất `p ∈ [0..1]`.
+- **Huấn luyện**: Optimizer **Adam**, loss `BinaryCrossentropy`, metrics `BinaryAccuracy`, `AUC`; callbacks `EarlyStopping`, `ReduceLROnPlateau`, `ModelCheckpoint`.
 
 ---
 
@@ -130,13 +121,12 @@ Sinh **20 đặc trưng số** + **2 đặc trưng phân loại**.
 3. Chia **train/val** (80/20, stratify).
 4. Tính thống kê chuẩn hoá & vocab embedding trên **train**.
 5. Tạo `tf.data.Dataset` theo `--batch`.
-6. Train mô hình (≈40 epoch, tuỳ chỉnh) + callbacks.
-7. Quét **ngưỡng** (threshold) và chọn theo chiến lược **maximin**:
+6. Train mô hình (≈40–60 epoch tuỳ chỉnh) + callbacks.
+7. Quét **ngưỡng** (threshold) và chọn theo chiến lược **maximin**:  
    `τ* = argmax_τ min(acc_train(τ), acc_val(τ))`.
-8. Lưu `best.keras`, `metrics.json`, `metrics_threshold.json`, biểu đồ loss/AUC.
+8. Lưu `model.keras` (hoặc `best.keras`), `metrics.json`, `metrics_threshold.json`, biểu đồ loss/AUC/ROC/PR.
 
 **Lệnh ví dụ:**
-
 ```bash
 python train_cicids_zeek.py \
   --train_csv data/train.csv \
@@ -144,18 +134,18 @@ python train_cicids_zeek.py \
   --outdir out_dir \
   --epochs 60 \
   --batch 2048
-```
+````
 
 ---
 
 ## 7. Thuật toán suy luận (realtime)
 
-> **Quan trọng:** Logic đặc trưng/định dạng đầu vào được định nghĩa ở **train** và được **tái sử dụng** y nguyên khi suy luận.
+> **Quan trọng:** Logic alias/đặc trưng ở **train** được **tái sử dụng y nguyên** ở realtime.
 
 **Vai trò file:**
 
 * `train_cicids_zeek.py`: định nghĩa đặc trưng, kiến trúc, huấn luyện, lựa chọn ngưỡng.
-* `new.py`: **đọc `conn.log` realtime**, ánh xạ cột, tạo **cùng đặc trưng**, nạp mô hình & ngưỡng, **dự đoán**.
+* `new.py`: đọc `conn.log` realtime, ánh xạ cột, tạo **cùng đặc trưng**, nạp mô hình & ngưỡng, **dự đoán**.
 
 **Quy trình:**
 
@@ -168,14 +158,14 @@ python train_cicids_zeek.py \
    * **Single-input**: ma trận 2D `(batch, n_features)` theo **thứ tự cố định**.
 5. `model.predict(inputs)` → xác suất `p`.
 6. So sánh `p` với `τ*` → `pred ∈ {0,1}`.
-7. Ghi JSONL + (tuỳ chọn) in alert.
+7. Ghi **JSONL** + (tuỳ chọn) in alert.
 
 **Lệnh ví dụ:**
 
 ```bash
 python new.py \
   --conn_log /path/to/zeek/conn.log \
-  --model_path out_dir/best.keras \
+  --model_path out_dir/model.keras \
   --threshold_json out_dir/metrics_threshold.json \
   --out_jsonl output/alerts.jsonl \
   --print_alerts
@@ -192,7 +182,7 @@ Tuỳ chọn:
 
 * **Xác suất**: đầu ra sigmoid `p = σ(z)`.
 * **Gán nhãn**: `pred = 1` nếu `p ≥ τ*`, ngược lại `0`.
-* **Chọn ngưỡng** (khi train): quét dải ngưỡng, chọn **maximin** để cân bằng train/val.
+* **Chọn ngưỡng khi train**: quét dải ngưỡng, chọn **maximin** để cân bằng train/val.
 * **Báo cáo**:
 
   * Classification report (precision/recall/F1).
@@ -204,16 +194,16 @@ Tuỳ chọn:
 
 ## 9. Xử lý **đầu vào** chi tiết
 
-* **Parse NDJSON/TSV** an toàn, log lỗi dòng hỏng.
-* **Đơn vị thời gian**: bảo đảm `duration` theo **giây**.
-* **Thiếu cột**: dùng giá trị mặc định (0 cho số, `other` cho chuỗi), log cảnh báo.
-* **Trật tự/kiểu dữ liệu**: giữ **đúng thứ tự** và dtype như lúc train.
+* Parser NDJSON/TSV an toàn, log lỗi dòng hỏng.
+* Đơn vị thời gian: bảo đảm `duration` theo **giây**.
+* Thiếu cột: dùng giá trị mặc định (0 cho số, `other` cho chuỗi), log cảnh báo.
+* Trật tự/kiểu dữ liệu: giữ **đúng thứ tự** và dtype như lúc train.
 
 ---
 
 ## 10. Xử lý **đầu ra** chi tiết
 
-**JSONL** mỗi dòng:
+**JSONL** mỗi dòng (ví dụ):
 
 ```json
 {
@@ -243,7 +233,7 @@ Tuỳ chọn ghi:
 
 * `--train_csv`, `--test_csv`, `--outdir`
 * `--epochs`, `--batch`
-* (khác tuỳ code: seed, depth, width…)
+* (khác tuỳ code: `seed`, `depth`, `width`…)
 
 **Suy luận (`new.py`):**
 
@@ -258,9 +248,11 @@ Tuỳ chọn ghi:
 .
 ├─ train_cicids_zeek.py     # Train + đặc trưng + threshold
 ├─ new.py                   # Đọc conn.log realtime + áp dụng model
-├─ data/                    # CSV CICIDS (chuẩn hoá cột)
+├─ turning.py               # Fine-tune model trên batch mới (có/không nhãn)
+├─ data/                    # CSV CICIDS / batch mới (đã chuẩn hoá)
 ├─ output/                  # alerts.jsonl (tuỳ chọn)
-├─ out_dir/                 # model, metrics, threshold, biểu đồ
+├─ out_dir/                 # model, metrics, threshold, biểu đồ (train)
+├─ out_dir_finetuned/       # model, metrics sau fine-tune
 └─ README.md
 ```
 
@@ -269,8 +261,113 @@ Tuỳ chọn ghi:
 ## 13. Sự cố thường gặp
 
 * Sai thứ tự feature → kết quả lệch.
-* Duration sai đơn vị → tốc độ “vọt” bất thường.
+* `duration` sai đơn vị → tốc độ “vọt” bất thường.
 * Thiếu cột hoặc tên lạ → bật log cảnh báo, cập nhật alias.
 * Ngưỡng không khớp → kiểm tra `metrics_threshold.json` hoặc dùng `--override_threshold`.
 
+---
+
+## 14. Bảng xu hướng & độ ảnh hưởng theo **kiểu tấn công**
+
+> Các nhãn **Mạnh/Trung bình/Yếu** là kinh nghiệm per-flow. Muốn định lượng theo dữ liệu của bạn, xem **Phụ lục A** (Permutation Importance / SHAP).
+
+### 14.1. DoS / DDoS
+
+| Đặc trưng                      | DoS/DDoS thường…                  | Lý do                                 | Ảnh hưởng             |
+| ------------------------------ | --------------------------------- | ------------------------------------- | --------------------- |
+| `total_pkts`, `pkts_per_sec`   | ↑ **rất mạnh**                    | Flood = mưa gói, tốc độ cực cao       | **Mạnh**              |
+| `total_bytes`, `bytes_per_sec` | ↑ mạnh                            | Băng thông bùng nổ (UDP/SYN flood)    | **Mạnh**              |
+| `log_total_*`, `log_*_per_sec` | ↑                                 | Log1p ổn định thang đo, vẫn tách tốt  | **Mạnh**              |
+| `orig_pkts`, `orig_bytes`      | ↑                                 | Lưu lượng chủ động từ attacker        | **Trung bình → Mạnh** |
+| `resp_pkts`, `resp_bytes`      | ↓/↔                               | Nạn nhân phản hồi hạn chế             | **Trung bình**        |
+| `byte_ratio`, `pkt_ratio`      | ↑                                 | Lệch phía attacker                    | **Trung bình**        |
+| `bytes_per_pkt`                | ↔/↑ nhẹ                           | UDP flood có thể gói lớn; SYN thì nhỏ | **Trung bình**        |
+| `duration`                     | ↔/↓                               | Nhiều flow ngắn                       | **Trung bình**        |
+| `resp_port_bucket`             | nghiêng `well_known` (80/443/53…) | Đích phổ biến bị nhắm                 | **Trung bình**        |
+| `id.resp_p`                    | ↔                                 | Số cổng thô kém thông tin             | **Yếu**               |
+| `proto`                        | `udp`/`tcp` chủ đạo               | UDP/SYN flood phổ biến                | **Trung bình**        |
+
+### 14.2. Port Scan
+
+| Đặc trưng                   | Port Scan thường…                          | Lý do                          | Ảnh hưởng            |
+| --------------------------- | ------------------------------------------ | ------------------------------ | -------------------- |
+| `orig_pkts`, `resp_pkts`    | rất thấp (1–2 gói/flow)                    | SYN “gõ cửa”                   | **Trung bình**       |
+| `total_pkts`, `total_bytes` | ↓                                          | Flow “mảnh”                    | **Trung bình**       |
+| `duration`                  | ↓ ngắn                                     | Bắt tay thất bại/đo cổng nhanh | **Trung bình**       |
+| `pkts_per_sec`              | ↑ (do `T` nhỏ)                             | Mật độ/giây cao                | **Trung bình**       |
+| `bytes_per_pkt`             | ↓                                          | Gói nhỏ (SYN/RST)              | **Trung bình**       |
+| `byte_ratio`, `pkt_ratio`   | ↑ nhẹ                                      | Chủ yếu gói đi                 | **Yếu → Trung bình** |
+| `log_pkts_per_sec`          | ↑                                          | Nổi bật mật độ trên flow ngắn  | **Trung bình**       |
+| `resp_port_bucket`          | phân tán (`well_known/registered/dynamic`) | Quét dải cổng rộng             | **Trung bình**       |
+| `id.resp_p`                 | thay đổi liên tục                          | Không cổng cố định             | **Yếu**              |
+| `proto`                     | chủ yếu `tcp` (có `icmp`)                  | SYN/ACK scan phổ biến          | **Yếu → Trung bình** |
+
+> Scan là hành vi **đa-flow**; per-flow vẫn nhận ra nhờ “ngắn, ít gói, mật độ cao”. Muốn mạnh hơn, có thể bổ sung đặc trưng theo **IP/cửa sổ thời gian**.
+
+### 14.3. Brute-force (SSH/FTP/HTTP form)
+
+| Đặc trưng                       | Brute-force thường…                  | Lý do                           | Ảnh hưởng            |
+| ------------------------------- | ------------------------------------ | ------------------------------- | -------------------- |
+| `resp_port_bucket`              | thiên `well_known` (22/21/23/80/443) | Nhắm dịch vụ xác thực phổ biến  | **Trung bình**       |
+| `proto`                         | `tcp`                                | SSH/FTP/HTTP auth               | **Trung bình**       |
+| `orig_pkts`, `orig_bytes`       | ↑ vừa                                | Nhiều request login/handshake   | **Trung bình**       |
+| `resp_pkts`, `resp_bytes`       | ↔/↑ nhẹ                              | Server trả lỗi/ban              | **Yếu → Trung bình** |
+| `total_pkts`, `total_bytes`     | ↑ nhẹ–vừa                            | Mỗi flow không quá “to”         | **Trung bình**       |
+| `pkts_per_sec`, `bytes_per_sec` | ↔/↑ nhẹ                              | Tăng tốc nhưng không “bùng nổ”  | **Yếu → Trung bình** |
+| `duration`                      | ↔/↓                                  | Thử sai kết thúc sớm            | **Yếu → Trung bình** |
+| `byte_ratio`, `pkt_ratio`       | ↑ nhẹ                                | Lệch phía client                | **Yếu → Trung bình** |
+| `log_total_pkts`                | ↑ nhẹ                                | Gom nhiều gói hơn benign thường | **Trung bình**       |
+| `id.resp_p`                     | khá cố định (22/21/…)                | Đích cụ thể                     | **Yếu**              |
+
+---
+
+## 15. Fine-tune model trên batch mới (`turning.py`)
+
+`turning.py` giúp **fine-tune** model đã train bằng batch CSV mới (có nhãn hoặc không có nhãn). Giữ **đúng pipeline đặc trưng** như khi train để đảm bảo nhất quán.
+
+### 15.1. Chế độ hỗ trợ
+
+* **Supervised**: CSV có cột nhãn (mặc định `Label`) → fine-tune bằng nhãn thật.
+* **Pseudo-label**: Nếu thiếu nhãn hoặc bật `--pseudo_label`, script tạo nhãn tạm từ model hiện tại bằng **ngưỡng** `--threshold` (mặc định `0.5`) và **fallback top-k%** (`--pseudo_topk`) khi không đủ mẫu dương tính.
+
+### 15.2. Cách chạy (ví dụ)
+
+```bash
+# Supervised
+python turning.py \
+  --model out_dir/model.keras \
+  --finetune_csv data/new_batch.csv \
+  --outdir out_dir_finetuned \
+  --epochs 5 \
+  --batch 4096 \
+  --lr 5e-4 \
+  --val_split 0.15
+
+# Pseudo-label + fallback top-1%
+python turning.py \
+  --model out_dir/model.keras \
+  --finetune_csv data/new_unlabeled.csv \
+  --outdir out_dir_finetuned \
+  --pseudo_label \
+  --threshold 0.5 \
+  --pseudo_topk 1.0 \
+  --epochs 3
+```
+
+### 15.3. Tham số chính
+
+* `--model`: đường dẫn `.keras` gốc.
+* `--finetune_csv`: CSV batch mới (đã chuẩn hoá alias/cột).
+* `--outdir`: nơi ghi **model fine-tuned** + **metrics**.
+* `--epochs`, `--batch`, `--lr`, `--val_split`, `--seed`.
+* `--label_col`: tên cột nhãn (mặc định `Label`).
+* `--pseudo_label`, `--threshold`, `--pseudo_topk`.
+
+### 15.4. Kết quả
+
+* `model.keras` (model đã fine-tune).
+* `metrics.json`, `metrics_threshold.json` (ngưỡng theo **maximin** trên split val).
+* `classification_report_val.txt`, `confusion_matrix_val.csv` nếu có nhãn.
+
+---
 
