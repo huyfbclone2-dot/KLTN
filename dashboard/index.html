@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <title>IDS AI Dashboard (JSONL realtime)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font -->
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+    <style>
+      html,
+      body {
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+      .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+        border-radius: 9999px;
+      }
+      .tab-btn-active {
+        border-bottom-width: 2px;
+        border-color: #3b82f6;
+        color: #60a5fa;
+      }
+    </style>
+  </head>
+  <body class="h-full bg-slate-950 text-slate-100">
+    <div class="min-h-full flex flex-col">
+      <!-- Header -->
+      <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+        <div
+          class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold"
+            >
+              AI
+            </div>
+            <div>
+              <h1 class="text-lg font-semibold tracking-tight">
+                IDS AI Dashboard
+              </h1>
+              <p class="text-xs text-slate-400">
+                Realtime network anomaly &amp; attack monitoring (JSONL)
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-1 text-xs text-slate-400">
+            <span
+              >Data source:
+              <code
+                id="dataPathLabel"
+                class="bg-slate-900/80 px-2 py-1 rounded border border-slate-700"
+              >
+              </code>
+            </span>
+            <span
+              >Last refresh:
+              <span id="lastRefresh" class="text-slate-200">—</span>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Tabs + global controls -->
+      <div class="border-b border-slate-800 bg-slate-950">
+        <div
+          class="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between"
+        >
+          <div class="flex gap-6 text-sm">
+            <button
+              id="tabDashboard"
+              class="py-3 border-b-2 border-blue-500 text-blue-400 font-medium tab-btn-active"
+            >
+              Dashboard
+            </button>
+            <button
+              id="tabEvents"
+              class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium"
+            >
+              Events
+            </button>
+          </div>
+          <div
+            class="flex flex-wrap items-center gap-4 text-xs text-slate-400 py-2"
+          >
+            <label class="flex items-center gap-2">
+              Refresh (sec)
+              <input
+                id="refreshSec"
+                type="number"
+                min="1"
+                value="5"
+                class="w-16 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100"
+              />
+            </label>
+            <button
+              id="forceRefreshBtn"
+              class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs"
+            >
+              Force refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <main class="flex-1">
+        <div class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+          <!-- DASHBOARD TAB -->
+          <section id="dashboardView" class="space-y-4">
+            <!-- Top metrics -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <p class="text-xs text-slate-400 mb-1">Total Traffic</p>
+                <p id="metricTotal" class="text-2xl font-semibold text-sky-400">
+                  0
+                </p>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <p class="text-xs text-slate-400 mb-1">Attacks Detected</p>
+                <p
+                  id="metricAttacks"
+                  class="text-2xl font-semibold text-red-400"
+                >
+                  0
+                </p>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <p class="text-xs text-slate-400 mb-1">Anomaly Rate</p>
+                <p
+                  id="metricAnomalyRate"
+                  class="text-2xl font-semibold text-amber-400"
+                >
+                  0%
+                </p>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <p class="text-xs text-slate-400 mb-1">Last Update</p>
+                <p id="metricLastTs" class="text-sm font-mono text-slate-200">
+                  —
+                </p>
+              </div>
+            </div>
+
+            <!-- Time filters -->
+            <div
+              class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex flex-wrap items-center gap-3 text-xs"
+            >
+              <span class="text-slate-400 mr-2"
+                >Time range (affects charts &amp; events):</span
+              >
+              <div class="flex flex-wrap gap-2">
+                <button
+                  data-range="1h"
+                  class="time-btn px-3 py-1 rounded-full bg-slate-800 text-slate-200"
+                >
+                  Last 1h
+                </button>
+                <button
+                  data-range="6h"
+                  class="time-btn px-3 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-700"
+                >
+                  Last 6h
+                </button>
+                <button
+                  data-range="24h"
+                  class="time-btn px-3 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-700"
+                >
+                  Last 24h
+                </button>
+                <button
+                  data-range="7d"
+                  class="time-btn px-3 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-700"
+                >
+                  Last 7d
+                </button>
+                <button
+                  data-range="all"
+                  class="time-btn px-3 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-700"
+                >
+                  All
+                </button>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 ml-auto">
+                <span class="text-slate-500">Custom:</span>
+                <input
+                  id="customFrom"
+                  type="datetime-local"
+                  class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs"
+                />
+                <span class="text-slate-500">→</span>
+                <input
+                  id="customTo"
+                  type="datetime-local"
+                  class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs"
+                />
+                <button
+                  id="applyCustomRange"
+                  class="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-xs"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+
+            <!-- Timeline (stacked area) -->
+            <div
+              class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h2 class="text-sm font-semibold">
+                    Traffic &amp; Attack Timeline
+                  </h2>
+                  <p class="text-[11px] text-slate-500">
+                    Stacked area: Normal (green) vs Attacks (red) theo thời
+                    gian.
+                  </p>
+                </div>
+                <span class="text-xs text-slate-500" id="timelineInfo"></span>
+              </div>
+              <div class="h-[260px]">
+                <canvas id="timelineChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Top IPs -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Top Source IP (attacks)
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Horizontal bar, dễ nhìn IP dài.
+                    </p>
+                  </div>
+                  <span class="text-xs text-slate-500" id="topSrcInfo"></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="topSrcChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Top Destination IP (attacks)
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Horizontal bar tương tự source IP.
+                    </p>
+                  </div>
+                  <span class="text-xs text-slate-500" id="topDstInfo"></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="topDstChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ports donut & Protocol pie -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Top Targeted Ports (attacks)
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Donut chart, thể hiện rõ tỉ trọng port bị tấn công.
+                    </p>
+                  </div>
+                  <span class="text-xs text-slate-500" id="topPortInfo"></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="topPortChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Protocol Distribution (attacks)
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Pie chart, thể hiện phân bố TCP/UDP/ICMP...
+                    </p>
+                  </div>
+                  <span class="text-xs text-slate-500" id="protoInfo"></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="protoChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Score histogram & Attack types -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Anomaly Score Distribution
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Histogram 0.0→1.0 để thấy ngưỡng tấn công.
+                    </p>
+                  </div>
+                  <span
+                    class="text-xs text-slate-500"
+                    id="scoreHistInfo"
+                  ></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="scoreHistChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+              <div
+                class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 class="text-sm font-semibold">
+                      Attack Types (pred_label)
+                    </h2>
+                    <p class="text-[11px] text-slate-500">
+                      Bar chart theo loại tấn công (SSH, FTP, scan,...).
+                    </p>
+                  </div>
+                  <span
+                    class="text-xs text-slate-500"
+                    id="attackTypeInfo"
+                  ></span>
+                </div>
+                <div class="h-[260px]">
+                  <canvas id="attackTypeChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- EVENTS TAB -->
+          <section id="eventsView" class="space-y-4 hidden">
+            <!-- Query bar -->
+            <div
+              class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-3"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex-1 min-w-[250px]">
+                  <label class="block text-xs text-slate-400 mb-1">
+                    Query (AND/OR, key:value, score&gt;0.8, port:22, pred:1,
+                    label:ssh, src:10.0.0.* ...)
+                  </label>
+                  <input
+                    id="eventsQuery"
+                    type="text"
+                    class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs"
+                    placeholder="Example: pred:1 AND score>0.8 AND port:22"
+                  />
+                </div>
+                <div class="flex gap-2 items-end">
+                  <button
+                    id="eventsQueryBtn"
+                    class="px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-xs font-medium"
+                  >
+                    Search
+                  </button>
+                  <button
+                    id="eventsQueryClear"
+                    class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-500">
+                Time range của Events dùng chung với Dashboard (Last
+                1h/6h/24h/7d/All/Custom).
+              </p>
+            </div>
+
+            <!-- Events table -->
+            <div
+              class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+            >
+              <div
+                class="flex flex-wrap items-center justify-between gap-3 mb-3 text-xs text-slate-400"
+              >
+                <div>
+                  <span>Rows (after filter): </span>
+                  <span id="eventsCount" class="text-slate-200 font-medium"
+                    >0</span
+                  >
+                </div>
+                <div class="flex items-center gap-2">
+                  <span>Show max</span>
+                  <select
+                    id="eventsPageSize"
+                    class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100"
+                  >
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                  </select>
+                  <span>rows (sorted by latest first)</span>
+                </div>
+              </div>
+              <div
+                class="max-h-[480px] overflow-auto scrollbar-thin border border-slate-800 rounded-xl"
+              >
+                <table class="min-w-full text-xs">
+                  <thead class="bg-slate-900/90 sticky top-0 z-10">
+                    <tr
+                      class="text-slate-400 text-[11px] uppercase tracking-wide"
+                    >
+                      <th class="px-3 py-2 text-left">Timestamp</th>
+                      <th class="px-3 py-2 text-left">Src IP</th>
+                      <th class="px-3 py-2 text-left">Dst IP</th>
+                      <th class="px-3 py-2 text-left">Proto</th>
+                      <th class="px-3 py-2 text-left">Port</th>
+                      <th class="px-3 py-2 text-left">Score</th>
+                      <th class="px-3 py-2 text-left">Label</th>
+                      <th class="px-3 py-2 text-left">Status</th>
+                      <th class="px-3 py-2 text-left">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    id="eventsTableBody"
+                    class="divide-y divide-slate-800 text-[11px]"
+                  >
+                    <!-- rows injected by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- JSON modal -->
+    <div
+      id="jsonModal"
+      class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50"
+    >
+      <div
+        class="bg-slate-950 border border-slate-700 rounded-2xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col"
+      >
+        <div
+          class="flex items-center justify-between px-4 py-3 border-b border-slate-800"
+        >
+          <h3 class="text-sm font-semibold">Event details (raw JSON)</h3>
+          <button
+            id="jsonModalClose"
+            class="text-slate-400 hover:text-slate-200 text-sm"
+          >
+            ✕
+          </button>
+        </div>
+        <div
+          class="p-4 overflow-auto text-xs font-mono text-slate-200 whitespace-pre-wrap"
+          id="jsonModalContent"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      // ====== CONFIG ======
+      const ALERTS_URL = "alerts.jsonl"; // đường dẫn file JSONL
+      const MAX_LINES = 120000; // số dòng tối đa đọc
+      const TOP_K = 10;
+
+      // ====== GLOBAL STATE ======
+      let allRows = []; // mảng các bản ghi đã chuẩn hoá
+      let latestTs = null;
+      let refreshHandle = null;
+
+      let timeRangeMode = "1h"; // 1h,6h,24h,7d,all,custom
+      let customFromTs = null;
+      let customToTs = null;
+
+      let timelineChart,
+        topSrcChart,
+        topDstChart,
+        topPortChart,
+        protoChart,
+        scoreHistChart,
+        attackTypeChart;
+
+      let eventsQuery = "";
+      let eventsPageSize = 100;
+
+      // ====== UTILS: time & parsing ======
+      function parseTimestamp(x) {
+        if (x === null || x === undefined || x === "") return null;
+        if (typeof x === "number") {
+          if (x > 1e12) return x / 1000.0; // ms -> s
+          return x;
+        }
+        const s = String(x).trim();
+        if (!s) return null;
+        if (/^-?\d+(\.\d+)?$/.test(s)) {
+          const v = parseFloat(s);
+          if (!isNaN(v)) return v;
+        }
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.getTime() / 1000.0;
+        return null;
+      }
+
+      function formatLocalTime(ts) {
+        if (ts === null || ts === undefined) return "";
+        const d = new Date(ts * 1000);
+        if (isNaN(d.getTime())) return "";
+        const pad = (n) => n.toString().padStart(2, "0");
+        return (
+          d.getFullYear() +
+          "-" +
+          pad(d.getMonth() + 1) +
+          "-" +
+          pad(d.getDate()) +
+          " " +
+          pad(d.getHours()) +
+          ":" +
+          pad(d.getMinutes()) +
+          ":" +
+          pad(d.getSeconds())
+        );
+      }
+
+      function clampScore(x) {
+        const v = Number(x);
+        if (isNaN(v)) return 0;
+        if (v < 0) return 0;
+        if (v > 1) return 1;
+        return v;
+      }
+
+      function normalizeRow(obj) {
+        const ts = typeof obj.Timestamp === "number" ? obj.Timestamp : null;
+
+        return {
+          tsNum: ts,
+          tsRaw: ts,
+          src: obj.SrcIP ?? "",
+          dst: obj.DstIP ?? "",
+          proto: (obj.Protocol ?? "").toLowerCase(),
+          port: obj.DestinationPort ?? 0,
+          pred: obj.pred === 1 ? 1 : 0,
+          score: Number(obj.score) || 0,
+          label: obj.pred_label ?? "",
+          raw: obj,
+        };
+      }
+
+      // ====== DATA LOADING ======
+      async function loadData() {
+        try {
+          const resp = await fetch(ALERTS_URL + "?t=" + Date.now(), {
+            cache: "no-store",
+          });
+          if (!resp.ok) {
+            console.error("Failed to fetch JSONL:", resp.status);
+            return;
+          }
+          const text = await resp.text();
+          const lines = text
+            .split(/\r?\n/)
+            .filter((line) => line.trim().length > 0);
+          const tailLines = lines.slice(-MAX_LINES);
+          const rows = [];
+          for (const ln of tailLines) {
+            try {
+              const obj = JSON.parse(ln);
+              const row = normalizeRow(obj);
+              if (row.tsNum !== null) rows.push(row);
+            } catch (e) {
+              // skip invalid line
+            }
+          }
+          allRows = rows;
+          latestTs = null;
+          for (const r of allRows) {
+            if (r.tsNum !== null && (latestTs === null || r.tsNum > latestTs)) {
+              latestTs = r.tsNum;
+            }
+          }
+          document.getElementById("lastRefresh").textContent = formatLocalTime(
+            Date.now() / 1000
+          );
+          recomputeAndRender();
+        } catch (err) {
+          console.error("Error loading data:", err);
+        }
+      }
+
+      // ====== FILTERING ======
+      function filterByTime(rows) {
+        if (!rows || rows.length === 0) return [];
+        if (timeRangeMode === "all") return rows.slice();
+
+        let endTs;
+        if (timeRangeMode === "custom" && customFromTs && customToTs) {
+          endTs = customToTs;
+        } else {
+          endTs = latestTs ?? Date.now() / 1000;
+        }
+
+        let startTs;
+        if (timeRangeMode === "custom" && customFromTs && customToTs) {
+          startTs = customFromTs;
+        } else {
+          let rangeSec = 3600;
+          if (timeRangeMode === "6h") rangeSec = 6 * 3600;
+          else if (timeRangeMode === "24h") rangeSec = 24 * 3600;
+          else if (timeRangeMode === "7d") rangeSec = 7 * 24 * 3600;
+          else if (timeRangeMode === "1h") rangeSec = 3600;
+          startTs = endTs - rangeSec;
+        }
+
+        const filtered = rows.filter(
+          (r) => r.tsNum !== null && r.tsNum >= startTs && r.tsNum <= endTs
+        );
+        const info = `${formatLocalTime(startTs)} → ${formatLocalTime(
+          endTs
+        )} (rows: ${filtered.length})`;
+        document.getElementById("timelineInfo").textContent = info;
+        return filtered;
+      }
+
+      // ====== METRICS & AGGREGATIONS ======
+      function updateMetrics() {
+        const total = allRows.length;
+        let alerts = 0;
+        for (const r of allRows) {
+          if (r.pred === 1) alerts++;
+        }
+        const rate = total > 0 ? (alerts / total) * 100 : 0;
+
+        document.getElementById("metricTotal").textContent = total.toString();
+        document.getElementById("metricAttacks").textContent =
+          alerts.toString();
+        document.getElementById("metricAnomalyRate").textContent =
+          rate.toFixed(2) + "%";
+        document.getElementById("metricLastTs").textContent = latestTs
+          ? formatLocalTime(latestTs)
+          : "—";
+      }
+
+      function buildTimelineData(rows) {
+        if (!rows || rows.length === 0) {
+          return { labels: [], normal: [], attack: [] };
+        }
+
+        // group by minute
+        const buckets = new Map();
+
+        for (const r of rows) {
+          if (!r.tsNum) continue;
+          const minute = Math.floor(r.tsNum / 60) * 60; // 1-min buckets
+          if (!buckets.has(minute)) {
+            buckets.set(minute, { normal: 0, attack: 0 });
+          }
+          if (r.pred === 1) buckets.get(minute).attack++;
+          else buckets.get(minute).normal++;
+        }
+
+        // sort by time
+        const sorted = Array.from(buckets.entries()).sort(
+          (a, b) => a[0] - b[0]
+        );
+
+        return {
+          labels: sorted.map((x) => formatLocalTime(x[0])),
+          normal: sorted.map((x) => x[1].normal),
+          attack: sorted.map((x) => x[1].attack),
+        };
+      }
+
+      function aggregateCounts(rows, keyFn, attacksOnly = true) {
+        const map = new Map();
+        for (const r of rows) {
+          if (attacksOnly && r.pred !== 1) continue;
+          const key = keyFn(r);
+          if (key === null || key === undefined) continue;
+          const k = String(key);
+          if (!map.has(k)) map.set(k, 0);
+          map.set(k, map.get(k) + 1);
+        }
+        const arr = Array.from(map.entries()).map(([k, v]) => ({
+          key: k,
+          count: v,
+        }));
+        arr.sort((a, b) => b.count - a.count);
+        return arr;
+      }
+
+      function buildScoreHistogram(rows) {
+        const bins = new Array(10).fill(0);
+        for (const r of rows) {
+          const s = clampScore(r.score);
+          const idx = Math.min(9, Math.floor(s * 10));
+          bins[idx]++;
+        }
+        const labels = [];
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10).toFixed(1);
+          const b = ((i + 1) / 10).toFixed(1);
+          labels.push(`${a}-${b}`);
+        }
+        return { labels, counts: bins };
+      }
+
+      // ====== CHARTS ======
+      function ensureCharts() {
+        if (!timelineChart) {
+          const ctx = document.getElementById("timelineChart").getContext("2d");
+          timelineChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Normal",
+                  data: [],
+                  backgroundColor: "#22c55e",
+                  borderWidth: 0,
+                },
+                {
+                  label: "Attack",
+                  data: [],
+                  backgroundColor: "#ef4444",
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  ticks: {
+                    color: "#cbd5f5",
+                    autoSkip: true,
+                    maxRotation: 0,
+                    minRotation: 0,
+                  },
+                  grid: { display: false },
+                },
+                y: {
+                  beginAtZero: true,
+                  ticks: { color: "#cbd5f5" },
+                  grid: { color: "rgba(51,65,85,0.3)" },
+                },
+              },
+              plugins: {
+                legend: { labels: { color: "#e5e7eb" } },
+              },
+            },
+          });
+        }
+
+        const barHorizontalOpts = {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: "y",
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { color: "#cbd5f5" },
+              grid: { color: "rgba(51,65,85,0.4)" },
+            },
+            y: {
+              ticks: { color: "#cbd5f5" },
+              grid: { display: false },
+            },
+          },
+          plugins: {
+            legend: { display: false },
+          },
+        };
+
+        const barVerticalOpts = {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: "#cbd5f5" },
+              grid: { color: "rgba(51,65,85,0.4)" },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: "#cbd5f5" },
+              grid: { color: "rgba(51,65,85,0.4)" },
+            },
+          },
+          plugins: {
+            legend: { display: false },
+          },
+        };
+
+        if (!topSrcChart) {
+          topSrcChart = new Chart(document.getElementById("topSrcChart"), {
+            type: "bar",
+            data: {
+              labels: [],
+              datasets: [{ data: [], backgroundColor: "#ef4444" }],
+            },
+            options: barHorizontalOpts,
+          });
+        }
+        if (!topDstChart) {
+          topDstChart = new Chart(document.getElementById("topDstChart"), {
+            type: "bar",
+            data: {
+              labels: [],
+              datasets: [{ data: [], backgroundColor: "#ef4444" }],
+            },
+            options: barHorizontalOpts,
+          });
+        }
+        if (!topPortChart) {
+          topPortChart = new Chart(document.getElementById("topPortChart"), {
+            type: "doughnut",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  data: [],
+                  backgroundColor: [],
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: "55%",
+              plugins: {
+                legend: { labels: { color: "#e5e7eb" } },
+                datalabels: {
+                  color: "#ffffff",
+                  font: { size: 11, weight: "bold" },
+                  formatter: (value, ctx) => {
+                    const sum = ctx.chart.data.datasets[0].data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const pct = ((value / sum) * 100).toFixed(1) + "%";
+                    return pct + "\n(" + value + ")";
+                  },
+                },
+              },
+            },
+            plugins: [ChartDataLabels],
+          });
+        }
+        if (!protoChart) {
+          protoChart = new Chart(document.getElementById("protoChart"), {
+            type: "pie",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  data: [],
+                  backgroundColor: [],
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: "#e5e7eb" } },
+                datalabels: {
+                  color: "#ffffff",
+                  font: { size: 11, weight: "bold" },
+                  formatter: (value, ctx) => {
+                    const sum = ctx.chart.data.datasets[0].data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const pct = ((value / sum) * 100).toFixed(1) + "%";
+                    return pct + "\n(" + value + ")";
+                  },
+                },
+              },
+            },
+            plugins: [ChartDataLabels],
+          });
+        }
+        if (!scoreHistChart) {
+          scoreHistChart = new Chart(
+            document.getElementById("scoreHistChart"),
+            {
+              type: "bar",
+              data: {
+                labels: [],
+                datasets: [{ data: [], backgroundColor: [] }],
+              },
+              options: barVerticalOpts,
+            }
+          );
+        }
+        if (!attackTypeChart) {
+          attackTypeChart = new Chart(
+            document.getElementById("attackTypeChart"),
+            {
+              type: "bar",
+              data: {
+                labels: [],
+                datasets: [{ data: [], backgroundColor: "#f97316" }],
+              },
+              options: barVerticalOpts,
+            }
+          );
+        }
+      }
+
+      function palette(n) {
+        // simple qualitative palette
+        const base = [
+          "#3b82f6",
+          "#22c55e",
+          "#eab308",
+          "#ef4444",
+          "#8b5cf6",
+          "#14b8a6",
+          "#f97316",
+          "#a855f7",
+          "#0ea5e9",
+          "#facc15",
+          "#f43f5e",
+          "#10b981",
+          "#6366f1",
+          "#d946ef",
+          "#f59e0b",
+        ];
+        const out = [];
+        for (let i = 0; i < n; i++) out.push(base[i % base.length]);
+        return out;
+      }
+
+      function updateCharts(rowsFiltered) {
+        ensureCharts();
+
+        // Timeline
+        const tl = buildTimelineData(rowsFiltered);
+        timelineChart.data.labels = tl.labels;
+        timelineChart.data.datasets[0].data = tl.normal;
+        timelineChart.data.datasets[1].data = tl.attack;
+        timelineChart.update("none");
+
+        // Top src
+        const topSrc = aggregateCounts(rowsFiltered, (r) => r.src, true).slice(
+          0,
+          TOP_K
+        );
+        topSrcChart.data.labels = topSrc.map((x) => x.key);
+        topSrcChart.data.datasets[0].data = topSrc.map((x) => x.count);
+        topSrcChart.update("none");
+        document.getElementById(
+          "topSrcInfo"
+        ).textContent = `${topSrc.length} IP`;
+
+        // Top dst
+        const topDst = aggregateCounts(rowsFiltered, (r) => r.dst, true).slice(
+          0,
+          TOP_K
+        );
+        topDstChart.data.labels = topDst.map((x) => x.key);
+        topDstChart.data.datasets[0].data = topDst.map((x) => x.count);
+        topDstChart.update("none");
+        document.getElementById(
+          "topDstInfo"
+        ).textContent = `${topDst.length} IP`;
+
+        // Top ports (doughnut)
+        const topPorts = aggregateCounts(
+          rowsFiltered,
+          (r) => r.port,
+          true
+        ).slice(0, TOP_K);
+        topPortChart.data.labels = topPorts.map((x) => x.key);
+        topPortChart.data.datasets[0].data = topPorts.map((x) => x.count);
+        topPortChart.data.datasets[0].backgroundColor = palette(
+          topPorts.length
+        );
+        topPortChart.update("none");
+        document.getElementById(
+          "topPortInfo"
+        ).textContent = `${topPorts.length} ports`;
+
+        // Protocols (pie)
+        const protos = aggregateCounts(rowsFiltered, (r) => r.proto, true);
+        protoChart.data.labels = protos.map((x) => x.key || "(empty)");
+        protoChart.data.datasets[0].data = protos.map((x) => x.count);
+        protoChart.data.datasets[0].backgroundColor = palette(protos.length);
+        protoChart.update("none");
+        document.getElementById(
+          "protoInfo"
+        ).textContent = `${protos.length} protocols`;
+
+        // Score histogram
+        const hist = buildScoreHistogram(rowsFiltered);
+        scoreHistChart.data.labels = hist.labels;
+        scoreHistChart.data.datasets[0].data = hist.counts;
+        // gradient: low score xanh, high score đỏ
+        const colors = hist.labels.map((_, i) => {
+          if (i <= 4) return "#22c55e";
+          if (i <= 7) return "#f97316";
+          return "#ef4444";
+        });
+        scoreHistChart.data.datasets[0].backgroundColor = colors;
+        scoreHistChart.update("none");
+        document.getElementById(
+          "scoreHistInfo"
+        ).textContent = `${rowsFiltered.length} rows`;
+
+        // Attack types (label)
+        const types = aggregateCounts(rowsFiltered, (r) => r.label, true);
+        attackTypeChart.data.labels = types.map((x) => x.key || "(empty)");
+        attackTypeChart.data.datasets[0].data = types.map((x) => x.count);
+        attackTypeChart.update("none");
+        document.getElementById(
+          "attackTypeInfo"
+        ).textContent = `${types.length} labels`;
+      }
+
+      // ====== EVENTS TAB ======
+      function parseQueryTokens(query) {
+        const clausesRaw = query
+          .split(/\s+OR\s+/i)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (clausesRaw.length === 0) return [];
+        return clausesRaw.map((clause) =>
+          clause
+            .split(/\s+/)
+            .filter((tok) => tok.toUpperCase() !== "AND" && tok.length > 0)
+        );
+      }
+
+      function rowMatchesQuery(row, query) {
+        query = query.trim();
+        if (!query) return true;
+        const clauses = parseQueryTokens(query);
+        if (clauses.length === 0) return true;
+
+        const strFields = (
+          row.src +
+          " " +
+          row.dst +
+          " " +
+          row.proto +
+          " " +
+          row.label +
+          " " +
+          row.port
+        ).toLowerCase();
+
+        const satisfiesClause = (tokens) => {
+          for (const tok of tokens) {
+            const m = tok.match(/^([^:]+):(.*)$/);
+            if (m) {
+              const key = m[1].toLowerCase();
+              const expr = m[2];
+              if (key === "score") {
+                const mm = expr.match(/^([<>]=?|==)?(.+)$/);
+                if (!mm) return false;
+                const op = mm[1] || "==";
+                const val = parseFloat(mm[2]);
+                const s = row.score;
+                if (isNaN(val)) return false;
+                let ok = true;
+                if (op === ">") ok = s > val;
+                else if (op === "<") ok = s < val;
+                else if (op === ">=") ok = s >= val;
+                else if (op === "<=") ok = s <= val;
+                else ok = s === val;
+                if (!ok) return false;
+              } else if (
+                key === "port" ||
+                key === "dstport" ||
+                key === "dport"
+              ) {
+                const mm = expr.match(/^([<>]=?|==)?(.+)$/);
+                if (!mm) return false;
+                const op = mm[1] || "==";
+                const val = parseInt(mm[2]);
+                const p = row.port;
+                if (isNaN(val)) return false;
+                let ok = true;
+                if (op === ">") ok = p > val;
+                else if (op === "<") ok = p < val;
+                else if (op === ">=") ok = p >= val;
+                else if (op === "<=") ok = p <= val;
+                else ok = p === val;
+                if (!ok) return false;
+              } else if (key === "pred" || key === "attack") {
+                const val = expr.trim();
+                const target =
+                  val === "1" ||
+                  val.toLowerCase() === "true" ||
+                  val.toLowerCase() === "attack";
+                if ((row.pred === 1) !== target) return false;
+              } else if (key === "src" || key === "srcip") {
+                const v = expr.toLowerCase();
+                if (!row.src.toLowerCase().includes(v.replace("*", "")))
+                  return false;
+              } else if (key === "dst" || key === "dstip") {
+                const v = expr.toLowerCase();
+                if (!row.dst.toLowerCase().includes(v.replace("*", "")))
+                  return false;
+              } else if (key === "proto" || key === "protocol") {
+                const v = expr.toLowerCase();
+                if (!row.proto.toLowerCase().includes(v)) return false;
+              } else if (key === "label") {
+                const v = expr.toLowerCase();
+                if (!row.label.toLowerCase().includes(v)) return false;
+              } else {
+                const v = (key + ":" + expr).toLowerCase();
+                if (!strFields.includes(v)) return false;
+              }
+            } else {
+              const w = tok.toLowerCase();
+              if (!strFields.includes(w)) return false;
+            }
+          }
+          return true;
+        };
+
+        for (const clauseTokens of clauses) {
+          if (satisfiesClause(clauseTokens)) return true;
+        }
+        return false;
+      }
+
+      function updateEventsTable(rowsFiltered) {
+        const tbody = document.getElementById("eventsTableBody");
+        tbody.innerHTML = "";
+
+        const filtered = rowsFiltered.filter((r) =>
+          rowMatchesQuery(r, eventsQuery)
+        );
+        filtered.sort((a, b) => (b.tsNum || 0) - (a.tsNum || 0));
+
+        const limit = Math.min(eventsPageSize, filtered.length);
+        document.getElementById(
+          "eventsCount"
+        ).textContent = `${limit}/${filtered.length}`;
+
+        for (let i = 0; i < limit; i++) {
+          const r = filtered[i];
+          const tr = document.createElement("tr");
+          tr.className =
+            r.pred === 1
+              ? "bg-red-950/40 hover:bg-red-900/40"
+              : "hover:bg-slate-900";
+
+          const td = (text) => {
+            const c = document.createElement("td");
+            c.className = "px-3 py-1.5 align-top";
+            c.textContent = text;
+            return c;
+          };
+
+          tr.appendChild(td(formatLocalTime(r.tsNum) || String(r.tsRaw || "")));
+          tr.appendChild(td(r.src));
+          tr.appendChild(td(r.dst));
+          tr.appendChild(td(r.proto));
+          tr.appendChild(td(r.port ? String(r.port) : ""));
+          tr.appendChild(td(r.score.toFixed(4)));
+          tr.appendChild(td(r.label));
+
+          const statusTd = document.createElement("td");
+          statusTd.className = "px-3 py-1.5 align-top";
+          const badge = document.createElement("span");
+          badge.className =
+            "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold " +
+            (r.pred === 1
+              ? "bg-red-500/20 text-red-300 border border-red-500/40"
+              : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40");
+          badge.textContent = r.pred === 1 ? "ATTACK" : "NORMAL";
+          statusTd.appendChild(badge);
+          tr.appendChild(statusTd);
+
+          const detTd = document.createElement("td");
+          detTd.className = "px-3 py-1.5 align-top";
+          const btn = document.createElement("button");
+          btn.className =
+            "px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px]";
+          btn.textContent = "View";
+          btn.addEventListener("click", () => openJsonModal(r.raw));
+          detTd.appendChild(btn);
+          tr.appendChild(detTd);
+
+          tbody.appendChild(tr);
+        }
+      }
+
+      // ====== MODAL ======
+      function openJsonModal(obj) {
+        const modal = document.getElementById("jsonModal");
+        const content = document.getElementById("jsonModalContent");
+        content.textContent = JSON.stringify(obj, null, 2);
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      }
+
+      function closeJsonModal() {
+        const modal = document.getElementById("jsonModal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+
+      // ====== RECOMPUTE EVERYTHING ======
+      function recomputeAndRender() {
+        const rowsFiltered = filterByTime(allRows);
+        updateMetrics();
+        updateCharts(rowsFiltered);
+        updateEventsTable(rowsFiltered);
+      }
+
+      // ====== INIT ======
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("dataPathLabel").textContent = ALERTS_URL;
+
+        // Tabs
+        const tabDash = document.getElementById("tabDashboard");
+        const tabEvents = document.getElementById("tabEvents");
+        const viewDash = document.getElementById("dashboardView");
+        const viewEvents = document.getElementById("eventsView");
+
+        tabDash.addEventListener("click", () => {
+          viewDash.classList.remove("hidden");
+          viewEvents.classList.add("hidden");
+          tabDash.classList.add(
+            "tab-btn-active",
+            "border-blue-500",
+            "text-blue-400"
+          );
+          tabEvents.classList.remove("tab-btn-active");
+          tabEvents.classList.remove("border-blue-500", "text-blue-400");
+          tabEvents.classList.add("border-transparent");
+        });
+        tabEvents.addEventListener("click", () => {
+          viewDash.classList.add("hidden");
+          viewEvents.classList.remove("hidden");
+          tabEvents.classList.add(
+            "tab-btn-active",
+            "border-blue-500",
+            "text-blue-400"
+          );
+          tabDash.classList.remove("tab-btn-active");
+          tabDash.classList.remove("border-blue-500", "text-blue-400");
+          tabDash.classList.add("border-transparent");
+        });
+
+        // Time buttons
+        document.querySelectorAll(".time-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            document.querySelectorAll(".time-btn").forEach((b) => {
+              b.classList.remove("bg-slate-800", "text-slate-200");
+              b.classList.add(
+                "bg-slate-900",
+                "text-slate-300",
+                "border",
+                "border-slate-700"
+              );
+            });
+            btn.classList.add("bg-slate-800", "text-slate-200");
+            btn.classList.remove("border", "border-slate-700");
+            timeRangeMode = btn.getAttribute("data-range");
+            recomputeAndRender();
+          });
+        });
+
+        // Custom time range
+        document
+          .getElementById("applyCustomRange")
+          .addEventListener("click", () => {
+            const from = document.getElementById("customFrom").value;
+            const to = document.getElementById("customTo").value;
+            if (!from || !to) return;
+            const fromTs = Date.parse(from) / 1000;
+            const toTs = Date.parse(to) / 1000;
+            if (isNaN(fromTs) || isNaN(toTs) || fromTs >= toTs) return;
+            customFromTs = fromTs;
+            customToTs = toTs;
+            timeRangeMode = "custom";
+            recomputeAndRender();
+          });
+
+        // Refresh controls
+        const refreshInput = document.getElementById("refreshSec");
+        function resetInterval() {
+          const v = parseInt(refreshInput.value);
+          const sec = isNaN(v) || v <= 0 ? 5 : v;
+          if (refreshHandle) clearInterval(refreshHandle);
+          refreshHandle = setInterval(loadData, sec * 1000);
+        }
+        refreshInput.addEventListener("change", resetInterval);
+        document
+          .getElementById("forceRefreshBtn")
+          .addEventListener("click", loadData);
+
+        // Events query
+        const qInput = document.getElementById("eventsQuery");
+        document
+          .getElementById("eventsQueryBtn")
+          .addEventListener("click", () => {
+            eventsQuery = qInput.value || "";
+            recomputeAndRender();
+          });
+        document
+          .getElementById("eventsQueryClear")
+          .addEventListener("click", () => {
+            qInput.value = "";
+            eventsQuery = "";
+            recomputeAndRender();
+          });
+        qInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            eventsQuery = qInput.value || "";
+            recomputeAndRender();
+          }
+        });
+
+        // Events page size
+        document
+          .getElementById("eventsPageSize")
+          .addEventListener("change", (e) => {
+            eventsPageSize = parseInt(e.target.value) || 100;
+            recomputeAndRender();
+          });
+
+        // Modal
+        document
+          .getElementById("jsonModalClose")
+          .addEventListener("click", closeJsonModal);
+        document.getElementById("jsonModal").addEventListener("click", (e) => {
+          if (e.target.id === "jsonModal") closeJsonModal();
+        });
+
+        // Initial
+        loadData();
+        resetInterval();
+      });
+    </script>
+  </body>
+</html>
