@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
     <style>
       html,
@@ -444,14 +445,14 @@
                     <tr
                       class="text-slate-400 text-[11px] uppercase tracking-wide"
                     >
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="tsNum"><span class="colLabel">Timestamp</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="src"><span class="colLabel">Src IP</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="dst"><span class="colLabel">Dst IP</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="proto"><span class="colLabel">Proto</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="port"><span class="colLabel">Port</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="score"><span class="colLabel">Score</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="label"><span class="colLabel">Label</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="pred"><span class="colLabel">Status</span><span class="sortArrow"></span></th>
+                      <th class="px-3 py-2 text-left">Timestamp</th>
+                      <th class="px-3 py-2 text-left">Src IP</th>
+                      <th class="px-3 py-2 text-left">Dst IP</th>
+                      <th class="px-3 py-2 text-left">Proto</th>
+                      <th class="px-3 py-2 text-left">Port</th>
+                      <th class="px-3 py-2 text-left">Score</th>
+                      <th class="px-3 py-2 text-left">Label</th>
+                      <th class="px-3 py-2 text-left">Status</th>
                       <th class="px-3 py-2 text-left">Details</th>
                     </tr>
                   </thead>
@@ -520,8 +521,6 @@
 
       let eventsQuery = "";
       let eventsPageSize = 100;
-      // sort state for events table: key and direction (1=asc, -1=desc)
-      let eventsSort = { key: "tsNum", dir: -1 };
 
       // ====== UTILS: time & parsing ======
       function parseTimestamp(x) {
@@ -682,30 +681,32 @@
 
       function buildTimelineData(rows) {
         if (!rows || rows.length === 0) {
-    return { labels: [], normal: [], attack: [] };
-  }
+          return { labels: [], normal: [], attack: [] };
+        }
 
-  // group by minute
-  const buckets = new Map();
+        // group by minute
+        const buckets = new Map();
 
-  for (const r of rows) {
-    if (!r.tsNum) continue;
-    const minute = Math.floor(r.tsNum / 60) * 60; // 1-min buckets
-    if (!buckets.has(minute)) {
-      buckets.set(minute, { normal: 0, attack: 0 });
-    }
-    if (r.pred === 1) buckets.get(minute).attack++;
-    else buckets.get(minute).normal++;
-  }
+        for (const r of rows) {
+          if (!r.tsNum) continue;
+          const minute = Math.floor(r.tsNum / 60) * 60; // 1-min buckets
+          if (!buckets.has(minute)) {
+            buckets.set(minute, { normal: 0, attack: 0 });
+          }
+          if (r.pred === 1) buckets.get(minute).attack++;
+          else buckets.get(minute).normal++;
+        }
 
-  // sort by time
-  const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+        // sort by time
+        const sorted = Array.from(buckets.entries()).sort(
+          (a, b) => a[0] - b[0]
+        );
 
-  return {
-    labels: sorted.map(x => formatLocalTime(x[0])),
-    normal: sorted.map(x => x[1].normal),
-    attack: sorted.map(x => x[1].attack)
-  };
+        return {
+          labels: sorted.map((x) => formatLocalTime(x[0])),
+          normal: sorted.map((x) => x[1].normal),
+          attack: sorted.map((x) => x[1].attack),
+        };
       }
 
       function aggregateCounts(rows, keyFn, attacksOnly = true) {
@@ -853,28 +854,70 @@
         if (!topPortChart) {
           topPortChart = new Chart(document.getElementById("topPortChart"), {
             type: "doughnut",
-            data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  data: [],
+                  backgroundColor: [],
+                },
+              ],
+            },
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              cutout: "55%",
               plugins: {
                 legend: { labels: { color: "#e5e7eb" } },
+                datalabels: {
+                  color: "#ffffff",
+                  font: { size: 11, weight: "bold" },
+                  formatter: (value, ctx) => {
+                    const sum = ctx.chart.data.datasets[0].data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const pct = ((value / sum) * 100).toFixed(1) + "%";
+                    return pct + "\n(" + value + ")";
+                  },
+                },
               },
-              cutout: "55%",
             },
+            plugins: [ChartDataLabels],
           });
         }
         if (!protoChart) {
           protoChart = new Chart(document.getElementById("protoChart"), {
             type: "pie",
-            data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  data: [],
+                  backgroundColor: [],
+                },
+              ],
+            },
             options: {
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
                 legend: { labels: { color: "#e5e7eb" } },
+                datalabels: {
+                  color: "#ffffff",
+                  font: { size: 11, weight: "bold" },
+                  formatter: (value, ctx) => {
+                    const sum = ctx.chart.data.datasets[0].data.reduce(
+                      (a, b) => a + b,
+                      0
+                    );
+                    const pct = ((value / sum) * 100).toFixed(1) + "%";
+                    return pct + "\n(" + value + ")";
+                  },
+                },
               },
             },
+            plugins: [ChartDataLabels],
           });
         }
         if (!scoreHistChart) {
@@ -929,25 +972,6 @@
         return out;
       }
 
-      // Palette for donut/pie that avoids red and green to improve distinguishability
-      function paletteDistinct(n) {
-        const base = [
-          "#3b82f6", // blue
-          "#f59e0b", // amber/orange
-          "#8b5cf6", // purple
-          "#d946ef", // magenta
-          "#0ea5e9", // sky/cyan
-          "#6366f1", // indigo
-          "#f97316", // orange
-          "#fb7185", // rose
-          "#06b6d4", // teal/cyan
-          "#a855f7", // deep purple
-        ];
-        const out = [];
-        for (let i = 0; i < n; i++) out.push(base[i % base.length]);
-        return out;
-      }
-
       function updateCharts(rowsFiltered) {
         ensureCharts();
 
@@ -982,7 +1006,7 @@
           "topDstInfo"
         ).textContent = `${topDst.length} IP`;
 
-        // Top ports (donut)
+        // Top ports (doughnut)
         const topPorts = aggregateCounts(
           rowsFiltered,
           (r) => r.port,
@@ -990,7 +1014,7 @@
         ).slice(0, TOP_K);
         topPortChart.data.labels = topPorts.map((x) => x.key);
         topPortChart.data.datasets[0].data = topPorts.map((x) => x.count);
-        topPortChart.data.datasets[0].backgroundColor = paletteDistinct(
+        topPortChart.data.datasets[0].backgroundColor = palette(
           topPorts.length
         );
         topPortChart.update("none");
@@ -1002,7 +1026,7 @@
         const protos = aggregateCounts(rowsFiltered, (r) => r.proto, true);
         protoChart.data.labels = protos.map((x) => x.key || "(empty)");
         protoChart.data.datasets[0].data = protos.map((x) => x.count);
-        protoChart.data.datasets[0].backgroundColor = paletteDistinct(protos.length);
+        protoChart.data.datasets[0].backgroundColor = palette(protos.length);
         protoChart.update("none");
         document.getElementById(
           "protoInfo"
@@ -1143,64 +1167,14 @@
         return false;
       }
 
-      // ====== EVENTS TABLE SORTING HELPERS ======
-      function compareRowsForSort(a, b) {
-        const key = eventsSort.key;
-        let va = a[key];
-        let vb = b[key];
-
-        // normalize numeric fields
-        if (key === "tsNum" || key === "port" || key === "score" || key === "pred") {
-          va = va === null || va === undefined ? -Infinity : Number(va);
-          vb = vb === null || vb === undefined ? -Infinity : Number(vb);
-          if (va < vb) return -1 * eventsSort.dir;
-          if (va > vb) return 1 * eventsSort.dir;
-          return 0;
-        }
-
-        // string compare (case-insensitive)
-        va = String(va || "").toLowerCase();
-        vb = String(vb || "").toLowerCase();
-        return va.localeCompare(vb) * eventsSort.dir;
-      }
-
-      function updateSortIndicators() {
-        document.querySelectorAll("thead th[data-col]").forEach((th) => {
-          const col = th.getAttribute("data-col");
-          const arrow = th.querySelector(".sortArrow");
-          if (!arrow) return;
-          if (col === eventsSort.key) arrow.textContent = eventsSort.dir === 1 ? " ▲" : " ▼";
-          else arrow.textContent = "";
-        });
-      }
-
-      function setEventsSort(col) {
-        // Cycle behavior for clicks on the same column:
-        // 1st click -> sort DESC, 2nd click -> sort ASC, 3rd click -> reset to default (tsNum desc)
-        if (eventsSort.key !== col) {
-          eventsSort.key = col;
-          eventsSort.dir = -1; // start with descending
-        } else {
-          // same column clicked again
-          if (eventsSort.dir === -1) {
-            eventsSort.dir = 1; // toggle to ascending
-          } else if (eventsSort.dir === 1) {
-            // third click: reset to default sort (timestamp desc)
-            eventsSort.key = "tsNum";
-            eventsSort.dir = -1;
-          }
-        }
-        updateSortIndicators();
-        recomputeAndRender();
-      }
-
       function updateEventsTable(rowsFiltered) {
         const tbody = document.getElementById("eventsTableBody");
         tbody.innerHTML = "";
 
-        const filtered = rowsFiltered.filter((r) => rowMatchesQuery(r, eventsQuery));
-        // sort according to eventsSort
-        filtered.sort(compareRowsForSort);
+        const filtered = rowsFiltered.filter((r) =>
+          rowMatchesQuery(r, eventsQuery)
+        );
+        filtered.sort((a, b) => (b.tsNum || 0) - (a.tsNum || 0));
 
         const limit = Math.min(eventsPageSize, filtered.length);
         document.getElementById(
@@ -1399,13 +1373,6 @@
         document.getElementById("jsonModal").addEventListener("click", (e) => {
           if (e.target.id === "jsonModal") closeJsonModal();
         });
-
-        // Make events table headers clickable for sorting
-        document.querySelectorAll('thead th[data-col]').forEach((th) => {
-          th.addEventListener('click', () => setEventsSort(th.getAttribute('data-col')));
-        });
-        // show initial sort indicator
-        updateSortIndicators();
 
         // Initial
         loadData();
