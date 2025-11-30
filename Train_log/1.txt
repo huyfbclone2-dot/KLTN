@@ -1,0 +1,185 @@
+PS E:\IDS> python zeek_v3.py --train_csv .\MachineLearningCVE\CICIDS_4files_train.csv --test_csv .\MachineLearningCVE\CICIDS_4files_test.csv --outdir 3011 --epochs 20 --batch 4096
+2025-11-30 20:31:15.289683: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-11-30 20:31:24.906215: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+[build_features] Bỏ 6438 dòng với nhãn không thuộc {benign, dos, portscan, ftp_bruteforce}.
+Label counts (train+val) sau khi lọc:
+label
+0    1012109
+1     304887
+2     127248
+3       6270
+Name: count, dtype: int64
+Mapping lớp: {0: 'benign', 1: 'dos', 2: 'portscan', 3: 'ftp_bruteforce'}
+[build_features] Bỏ 1650 dòng với nhãn không thuộc {benign, dos, portscan, ftp_bruteforce}.
+2025-11-30 20:31:50.149158: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:From C:\Users\Huy\AppData\Local\Programs\Python\Python313\Lib\site-packages\keras\src\backend\tensorflow\core.py:232: The name tf.placeholder is deprecated. Please use tf.compat.v1.placeholder instead.
+
+Epoch 1/20
+284/284 - 57s - 201ms/step - accuracy: 0.9576 - loss: 0.1189 - val_accuracy: 0.9849 - val_loss: 0.0414 - learning_rate: 1.0000e-03
+Epoch 2/20
+284/284 - 50s - 176ms/step - accuracy: 0.9857 - loss: 0.0427 - val_accuracy: 0.9879 - val_loss: 0.0334 - learning_rate: 1.0000e-03
+Epoch 3/20
+284/284 - 52s - 182ms/step - accuracy: 0.9875 - loss: 0.0363 - val_accuracy: 0.9891 - val_loss: 0.0300 - learning_rate: 1.0000e-03
+Epoch 4/20
+284/284 - 53s - 188ms/step - accuracy: 0.9886 - loss: 0.0331 - val_accuracy: 0.9907 - val_loss: 0.0270 - learning_rate: 1.0000e-03
+Epoch 5/20
+284/284 - 56s - 196ms/step - accuracy: 0.9896 - loss: 0.0304 - val_accuracy: 0.9912 - val_loss: 0.0254 - learning_rate: 1.0000e-03
+Epoch 6/20
+284/284 - 56s - 196ms/step - accuracy: 0.9902 - loss: 0.0298 - val_accuracy: 0.9916 - val_loss: 0.0240 - learning_rate: 1.0000e-03
+Epoch 7/20
+284/284 - 58s - 204ms/step - accuracy: 0.9906 - loss: 0.0278 - val_accuracy: 0.9920 - val_loss: 0.0238 - learning_rate: 1.0000e-03
+Epoch 8/20
+284/284 - 58s - 204ms/step - accuracy: 0.9912 - loss: 0.0263 - val_accuracy: 0.9919 - val_loss: 0.0238 - learning_rate: 1.0000e-03
+Epoch 9/20
+284/284 - 59s - 208ms/step - accuracy: 0.9912 - loss: 0.0262 - val_accuracy: 0.9928 - val_loss: 0.0222 - learning_rate: 1.0000e-03
+Epoch 10/20
+284/284 - 61s - 213ms/step - accuracy: 0.9915 - loss: 0.0259 - val_accuracy: 0.9928 - val_loss: 0.0230 - learning_rate: 1.0000e-03
+Epoch 11/20
+284/284 - 59s - 208ms/step - accuracy: 0.9917 - loss: 0.0255 - val_accuracy: 0.9930 - val_loss: 0.0217 - learning_rate: 1.0000e-03
+Epoch 12/20
+284/284 - 62s - 218ms/step - accuracy: 0.9920 - loss: 0.0241 - val_accuracy: 0.9925 - val_loss: 0.0217 - learning_rate: 1.0000e-03
+Epoch 13/20
+284/284 - 64s - 224ms/step - accuracy: 0.9921 - loss: 0.0240 - val_accuracy: 0.9928 - val_loss: 0.0214 - learning_rate: 1.0000e-03
+Epoch 14/20
+284/284 - 63s - 223ms/step - accuracy: 0.9921 - loss: 0.0253 - val_accuracy: 0.9932 - val_loss: 0.0204 - learning_rate: 1.0000e-03
+Epoch 15/20
+284/284 - 66s - 231ms/step - accuracy: 0.9924 - loss: 0.0233 - val_accuracy: 0.9930 - val_loss: 0.0206 - learning_rate: 1.0000e-03
+Epoch 16/20
+284/284 - 67s - 237ms/step - accuracy: 0.9923 - loss: 0.0237 - val_accuracy: 0.9936 - val_loss: 0.0193 - learning_rate: 1.0000e-03
+Epoch 17/20
+284/284 - 68s - 240ms/step - accuracy: 0.9924 - loss: 0.0228 - val_accuracy: 0.9934 - val_loss: 0.0198 - learning_rate: 1.0000e-03
+Epoch 18/20
+284/284 - 70s - 247ms/step - accuracy: 0.9926 - loss: 0.0219 - val_accuracy: 0.9937 - val_loss: 0.0186 - learning_rate: 1.0000e-03
+Epoch 19/20
+284/284 - 70s - 245ms/step - accuracy: 0.9925 - loss: 0.0220 - val_accuracy: 0.9932 - val_loss: 0.0219 - learning_rate: 1.0000e-03
+Epoch 20/20
+284/284 - 66s - 234ms/step - accuracy: 0.9928 - loss: 0.0208 - val_accuracy: 0.9952 - val_loss: 0.0138 - learning_rate: 1.0000e-03
+TRAIN acc: 0.9953249322869224
+VAL   acc: 0.9952223865316802
+[train] Binary AUC (benign vs malware): 0.999858
+
+[train] classification_report @ threshold=0.5:
+              precision    recall  f1-score   support
+
+      benign     0.9973    0.9965    0.9969    809687
+     malware     0.9919    0.9938    0.9928    350724
+
+    accuracy                         0.9957   1160411
+   macro avg     0.9946    0.9951    0.9949   1160411
+weighted avg     0.9957    0.9957    0.9957   1160411
+
+
+[train] Top 10 threshold (sort theo F1), saved to 3011\threshold_metrics_train.csv:
+ threshold  accuracy  precision   recall       f1      tpr      fpr      tnr      fnr     tn   fp   fn     tp
+      0.66  0.995911   0.994350 0.992108 0.993228 0.992108 0.002442 0.997558 0.007892 807710 1977 2768 347956
+      0.67  0.995885   0.994429 0.991942 0.993184 0.991942 0.002407 0.997593 0.008058 807738 1949 2826 347898
+      0.68  0.995823   0.994663 0.991500 0.993079 0.991500 0.002305 0.997695 0.008500 807821 1866 2981 347743
+      0.69  0.995804   0.994744 0.991355 0.993047 0.991355 0.002269 0.997731 0.008645 807850 1837 3032 347692
+      0.55  0.995776   0.992669 0.993359 0.993014 0.993359 0.003178 0.996822 0.006641 807114 2573 2329 348395
+      0.56  0.995759   0.992747 0.993225 0.992986 0.993225 0.003143 0.996857 0.006775 807142 2545 2376 348348
+      0.57  0.995755   0.992792 0.993166 0.992979 0.993166 0.003123 0.996877 0.006834 807158 2529 2397 348327
+      0.58  0.995746   0.992851 0.993077 0.992964 0.993077 0.003097 0.996903 0.006923 807179 2508 2428 348296
+      0.54  0.995745   0.992505 0.993422 0.992964 0.993422 0.003249 0.996751 0.006578 807056 2631 2307 348417
+      0.70  0.995727   0.994870 0.990970 0.992916 0.990970 0.002213 0.997787 0.009030 807895 1792 3167 347557
+
+[train] Best threshold by F1 = 0.66
+Confusion matrix [ [tn, fp], [fn, tp] ]:
+[[807710   1977]
+ [  2768 347956]]
+[val] Binary AUC (benign vs malware): 0.999858
+
+[val] classification_report @ threshold=0.5:
+              precision    recall  f1-score   support
+
+      benign     0.9971    0.9966    0.9968    202422
+     malware     0.9921    0.9932    0.9927     87681
+
+    accuracy                         0.9956    290103
+   macro avg     0.9946    0.9949    0.9948    290103
+weighted avg     0.9956    0.9956    0.9956    290103
+
+
+[val] Top 10 threshold (sort theo F1), saved to 3011\threshold_metrics_val.csv:
+ threshold  accuracy  precision   recall       f1      tpr      fpr      tnr      fnr     tn  fp  fn    tp
+      0.66  0.995826   0.994453 0.991720 0.993085 0.991720 0.002396 0.997604 0.008280 201937 485 726 86955
+      0.67  0.995788   0.994532 0.991515 0.993021 0.991515 0.002361 0.997639 0.008485 201944 478 744 86937
+      0.68  0.995684   0.994666 0.991036 0.992847 0.991036 0.002302 0.997698 0.008964 201956 466 786 86895
+      0.55  0.995671   0.992916 0.992758 0.992837 0.992758 0.003068 0.996932 0.007242 201801 621 635 87046
+      0.57  0.995667   0.993018 0.992644 0.992831 0.992644 0.003023 0.996977 0.007356 201810 612 645 87036
+      0.58  0.995664   0.993074 0.992575 0.992824 0.992575 0.002999 0.997001 0.007425 201815 607 651 87030
+      0.56  0.995660   0.992950 0.992689 0.992820 0.992689 0.003053 0.996947 0.007311 201804 618 641 87040
+      0.69  0.995643   0.994744 0.990819 0.992778 0.990819 0.002268 0.997732 0.009181 201963 459 805 86876
+      0.62  0.995629   0.993388 0.992142 0.992765 0.992142 0.002860 0.997140 0.007858 201843 579 689 86992
+      0.65  0.995626   0.993738 0.991777 0.992756 0.991777 0.002707 0.997293 0.008223 201874 548 721 86960
+
+[val] Best threshold by F1 = 0.66
+Confusion matrix [ [tn, fp], [fn, tp] ]:
+[[201937    485]
+ [   726  86955]]
+TEST  acc: 0.9952508080796938
+[test] Binary AUC (benign vs malware): 0.999842
+
+[test] classification_report @ threshold=0.5:
+              precision    recall  f1-score   support
+
+      benign     0.9973    0.9965    0.9969    253437
+     malware     0.9919    0.9936    0.9928    109151
+
+    accuracy                         0.9956    362588
+   macro avg     0.9946    0.9951    0.9948    362588
+weighted avg     0.9956    0.9956    0.9956    362588
+
+
+[test] Top 10 threshold (sort theo F1), saved to 3011\threshold_metrics_test.csv:
+ threshold  accuracy  precision   recall       f1      tpr      fpr      tnr      fnr     tn  fp   fn     tp
+      0.66  0.995835   0.994079 0.992075 0.993076 0.992075 0.002545 0.997455 0.007925 252792 645  865 108286
+      0.67  0.995830   0.994224 0.991910 0.993066 0.991910 0.002482 0.997518 0.008090 252808 629  883 108268
+      0.68  0.995767   0.994477 0.991443 0.992958 0.991443 0.002371 0.997629 0.008557 252836 601  934 108217
+      0.69  0.995736   0.994549 0.991269 0.992906 0.991269 0.002340 0.997660 0.008731 252844 593  953 108198
+      0.70  0.995722   0.994749 0.991022 0.992882 0.991022 0.002253 0.997747 0.008978 252866 571  980 108171
+      0.55  0.995692   0.992421 0.993275 0.992848 0.993275 0.003267 0.996733 0.006725 252609 828  734 108417
+      0.54  0.995681   0.992339 0.993321 0.992830 0.993321 0.003303 0.996697 0.006679 252600 837  729 108422
+      0.56  0.995667   0.992492 0.993120 0.992806 0.993120 0.003236 0.996764 0.006880 252617 820  751 108400
+      0.57  0.995665   0.992501 0.993101 0.992801 0.993101 0.003232 0.996768 0.006899 252618 819  753 108398
+      0.71  0.995673   0.994848 0.990756 0.992798 0.990756 0.002210 0.997790 0.009244 252877 560 1009 108142
+
+[test] Best threshold by F1 = 0.66
+Confusion matrix [ [tn, fp], [fn, tp] ]:
+[[252792    645]
+ [   865 108286]]
+WARNING:absl:`id.resp_p` is not a valid tf.function parameter name. Sanitizing to `id_resp_p`.
+WARNING:absl:`id.resp_p` is not a valid tf.function parameter name. Sanitizing to `id_resp_p`.
+WARNING:absl:`id.resp_p` is not a valid tf.function parameter name. Sanitizing to `id_resp_p`.
+WARNING:absl:`id.resp_p` is not a valid tf.function parameter name. Sanitizing to `id_resp_p`.
+WARNING:absl:`id.resp_p` is not a valid tf.function parameter name. Sanitizing to `id_resp_p`.
+Saved artifact at '3011\saved_model'. The following endpoints are available:
+
+* Endpoint 'serve'
+  args_0 (POSITIONAL_ONLY): Dict[['id.resp_p', TensorSpec(shape=(None,), dtype=tf.float32, name='id.resp_p')], ['duration', TensorSpec(shape=(None,), dtype=tf.float32, name='duration')], ['orig_bytes', TensorSpec(shape=(None,), dtype=tf.float32, name='orig_bytes')], ['resp_bytes', TensorSpec(shape=(None,), dtype=tf.float32, name='resp_bytes')], ['orig_pkts', TensorSpec(shape=(None,), dtype=tf.float32, name='orig_pkts')], ['resp_pkts', TensorSpec(shape=(None,), dtype=tf.float32, name='resp_pkts')], ['total_bytes', TensorSpec(shape=(None,), dtype=tf.float32, name='total_bytes')], ['total_pkts', TensorSpec(shape=(None,), dtype=tf.float32, name='total_pkts')], ['byte_ratio', TensorSpec(shape=(None,), dtype=tf.float32, name='byte_ratio')], ['pkt_ratio', TensorSpec(shape=(None,), dtype=tf.float32, name='pkt_ratio')], ['bytes_per_pkt', TensorSpec(shape=(None,), dtype=tf.float32, name='bytes_per_pkt')], ['pkts_per_sec', TensorSpec(shape=(None,), dtype=tf.float32, name='pkts_per_sec')], ['bytes_per_sec', TensorSpec(shape=(None,), dtype=tf.float32, name='bytes_per_sec')], ['log_total_bytes', TensorSpec(shape=(None,), dtype=tf.float32, name='log_total_bytes')], ['log_total_pkts', TensorSpec(shape=(None,), dtype=tf.float32, name='log_total_pkts')], ['log_bytes_per_pkt', TensorSpec(shape=(None,), dtype=tf.float32, name='log_bytes_per_pkt')], ['log_pkts_per_sec', TensorSpec(shape=(None,), dtype=tf.float32, name='log_pkts_per_sec')], ['log_bytes_per_sec', TensorSpec(shape=(None,), dtype=tf.float32, name='log_bytes_per_sec')], ['proto', TensorSpec(shape=(None,), dtype=tf.string, name='proto')], ['resp_port_bucket', TensorSpec(shape=(None,), dtype=tf.string, name='resp_port_bucket')]]
+Output Type:
+  TensorSpec(shape=(None, 4), dtype=tf.float32, name=None)
+Captures:
+  2237564603856: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564605584: TensorSpec(shape=(), dtype=tf.int64, name=None)
+  2237564603664: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564604048: TensorSpec(shape=(), dtype=tf.int64, name=None)
+  2237564605008: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564604624: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564605200: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564606736: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564605776: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564607312: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564606928: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564607888: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564607504: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564608464: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564608080: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564609040: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564608656: TensorSpec(shape=(), dtype=tf.resource, name=None)
+  2237564609616: TensorSpec(shape=(), dtype=tf.resource, name=None)
+== Accuracies ==
+TRAIN acc: 0.9953
+VAL   acc: 0.9952
+TEST  acc: 0.9953
+Artifacts in: 3011
