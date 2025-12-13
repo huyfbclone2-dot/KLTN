@@ -89,6 +89,12 @@
             >
               Events
             </button>
+            <button
+              id="tabBans"
+              class="py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-medium"
+            >
+              Banned IPs
+            </button>
           </div>
           <div
             class="flex flex-wrap items-center gap-4 text-xs text-slate-400 py-2"
@@ -370,6 +376,61 @@
           </section>
 
           <!-- EVENTS TAB -->
+
+          <!-- BANNED IPS TAB -->
+          <section id="bansView" class="space-y-4 hidden">
+            <div
+              class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+            >
+              <div
+                class="flex flex-wrap items-center justify-between gap-3 mb-3"
+              >
+                <div>
+                  <h2 class="text-sm font-semibold">Banned IP Management</h2>
+                  <p class="text-[11px] text-slate-500">
+                    List of auto-blocked source IPs (from banned_ips.txt) +
+                    one-click unban.
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input
+                    id="banSearch"
+                    class="bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs"
+                    placeholder="Search IP..."
+                  />
+                  <button
+                    id="banRefreshBtn"
+                    class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-xs"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              <div
+                class="max-h-[520px] overflow-auto scrollbar-thin border border-slate-800 rounded-xl"
+              >
+                <table class="min-w-full text-xs">
+                  <thead class="bg-slate-900/90 sticky top-0 z-10">
+                    <tr
+                      class="text-slate-400 text-[11px] uppercase tracking-wide"
+                    >
+                      <th class="px-3 py-2 text-left">Source IP</th>
+                      <th class="px-3 py-2 text-left">Meta</th>
+                      <th class="px-3 py-2 text-left">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    id="bansTableBody"
+                    class="divide-y divide-slate-800 text-[11px]"
+                  ></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="banToast" class="hidden text-xs"></div>
+          </section>
+
           <section id="eventsView" class="space-y-4 hidden">
             <!-- Query bar -->
             <div
@@ -444,14 +505,62 @@
                     <tr
                       class="text-slate-400 text-[11px] uppercase tracking-wide"
                     >
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="tsNum"><span class="colLabel">Timestamp</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="src"><span class="colLabel">Src IP</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="dst"><span class="colLabel">Dst IP</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="proto"><span class="colLabel">Proto</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="port"><span class="colLabel">Port</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="score"><span class="colLabel">Score</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="label"><span class="colLabel">Label</span><span class="sortArrow"></span></th>
-                      <th class="px-3 py-2 text-left cursor-pointer" data-col="pred"><span class="colLabel">Status</span><span class="sortArrow"></span></th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="tsNum"
+                      >
+                        <span class="colLabel">Timestamp</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="src"
+                      >
+                        <span class="colLabel">Src IP</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="dst"
+                      >
+                        <span class="colLabel">Dst IP</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="proto"
+                      >
+                        <span class="colLabel">Proto</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="port"
+                      >
+                        <span class="colLabel">Port</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="score"
+                      >
+                        <span class="colLabel">Score</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="label"
+                      >
+                        <span class="colLabel">Label</span
+                        ><span class="sortArrow"></span>
+                      </th>
+                      <th
+                        class="px-3 py-2 text-left cursor-pointer"
+                        data-col="pred"
+                      >
+                        <span class="colLabel">Status</span
+                        ><span class="sortArrow"></span>
+                      </th>
                       <th class="px-3 py-2 text-left">Details</th>
                     </tr>
                   </thead>
@@ -522,6 +631,34 @@
       let eventsPageSize = 100;
       // sort state for events table: key and direction (1=asc, -1=desc)
       let eventsSort = { key: "tsNum", dir: -1 };
+
+      // ====== BAN MANAGEMENT STATE ======
+      let bansRefreshHandle = null;
+      let banApiDownNotified = false; // tránh spam toast khi API down
+
+      // ====== AUTO-REFRESH FOR BAN MANAGEMENT ======
+      function getGlobalRefreshSec() {
+        const v = parseInt(document.getElementById("refreshSec")?.value);
+        return isNaN(v) || v <= 0 ? 5 : v;
+      }
+
+      function startBansAutoRefresh() {
+        stopBansAutoRefresh(); // clear cũ nếu có
+
+        const sec = getGlobalRefreshSec();
+        bansRefreshHandle = setInterval(async () => {
+          // chỉ refresh khi bans tab đang mở
+          const viewBans = document.getElementById("bansView");
+          if (!viewBans || viewBans.classList.contains("hidden")) return;
+
+          await loadBansAndRender(true); // silent mode
+        }, sec * 1000);
+      }
+
+      function stopBansAutoRefresh() {
+        if (bansRefreshHandle) clearInterval(bansRefreshHandle);
+        bansRefreshHandle = null;
+      }
 
       // ====== UTILS: time & parsing ======
       function parseTimestamp(x) {
@@ -682,30 +819,32 @@
 
       function buildTimelineData(rows) {
         if (!rows || rows.length === 0) {
-    return { labels: [], normal: [], attack: [] };
-  }
+          return { labels: [], normal: [], attack: [] };
+        }
 
-  // group by minute
-  const buckets = new Map();
+        // group by minute
+        const buckets = new Map();
 
-  for (const r of rows) {
-    if (!r.tsNum) continue;
-    const minute = Math.floor(r.tsNum / 60) * 60; // 1-min buckets
-    if (!buckets.has(minute)) {
-      buckets.set(minute, { normal: 0, attack: 0 });
-    }
-    if (r.pred === 1) buckets.get(minute).attack++;
-    else buckets.get(minute).normal++;
-  }
+        for (const r of rows) {
+          if (!r.tsNum) continue;
+          const minute = Math.floor(r.tsNum / 60) * 60; // 1-min buckets
+          if (!buckets.has(minute)) {
+            buckets.set(minute, { normal: 0, attack: 0 });
+          }
+          if (r.pred === 1) buckets.get(minute).attack++;
+          else buckets.get(minute).normal++;
+        }
 
-  // sort by time
-  const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
+        // sort by time
+        const sorted = Array.from(buckets.entries()).sort(
+          (a, b) => a[0] - b[0]
+        );
 
-  return {
-    labels: sorted.map(x => formatLocalTime(x[0])),
-    normal: sorted.map(x => x[1].normal),
-    attack: sorted.map(x => x[1].attack)
-  };
+        return {
+          labels: sorted.map((x) => formatLocalTime(x[0])),
+          normal: sorted.map((x) => x[1].normal),
+          attack: sorted.map((x) => x[1].attack),
+        };
       }
 
       function aggregateCounts(rows, keyFn, attacksOnly = true) {
@@ -1002,7 +1141,9 @@
         const protos = aggregateCounts(rowsFiltered, (r) => r.proto, true);
         protoChart.data.labels = protos.map((x) => x.key || "(empty)");
         protoChart.data.datasets[0].data = protos.map((x) => x.count);
-        protoChart.data.datasets[0].backgroundColor = paletteDistinct(protos.length);
+        protoChart.data.datasets[0].backgroundColor = paletteDistinct(
+          protos.length
+        );
         protoChart.update("none");
         document.getElementById(
           "protoInfo"
@@ -1150,7 +1291,12 @@
         let vb = b[key];
 
         // normalize numeric fields
-        if (key === "tsNum" || key === "port" || key === "score" || key === "pred") {
+        if (
+          key === "tsNum" ||
+          key === "port" ||
+          key === "score" ||
+          key === "pred"
+        ) {
           va = va === null || va === undefined ? -Infinity : Number(va);
           vb = vb === null || vb === undefined ? -Infinity : Number(vb);
           if (va < vb) return -1 * eventsSort.dir;
@@ -1169,7 +1315,8 @@
           const col = th.getAttribute("data-col");
           const arrow = th.querySelector(".sortArrow");
           if (!arrow) return;
-          if (col === eventsSort.key) arrow.textContent = eventsSort.dir === 1 ? " ▲" : " ▼";
+          if (col === eventsSort.key)
+            arrow.textContent = eventsSort.dir === 1 ? " ▲" : " ▼";
           else arrow.textContent = "";
         });
       }
@@ -1198,7 +1345,9 @@
         const tbody = document.getElementById("eventsTableBody");
         tbody.innerHTML = "";
 
-        const filtered = rowsFiltered.filter((r) => rowMatchesQuery(r, eventsQuery));
+        const filtered = rowsFiltered.filter((r) =>
+          rowMatchesQuery(r, eventsQuery)
+        );
         // sort according to eventsSort
         filtered.sort(compareRowsForSort);
 
@@ -1286,8 +1435,11 @@
         // Tabs
         const tabDash = document.getElementById("tabDashboard");
         const tabEvents = document.getElementById("tabEvents");
+        const tabBans = document.getElementById("tabBans");
+
         const viewDash = document.getElementById("dashboardView");
         const viewEvents = document.getElementById("eventsView");
+        const viewBans = document.getElementById("bansView");
 
         tabDash.addEventListener("click", () => {
           viewDash.classList.remove("hidden");
@@ -1312,6 +1464,13 @@
           tabDash.classList.remove("tab-btn-active");
           tabDash.classList.remove("border-blue-500", "text-blue-400");
           tabDash.classList.add("border-transparent");
+        });
+        tabBans.addEventListener("click", () => {
+          viewDash.classList.add("hidden");
+          viewEvents.classList.add("hidden");
+          viewBans.classList.remove("hidden");
+          // set active classes...
+          loadBansAndRender();
         });
 
         // Time buttons
@@ -1356,6 +1515,12 @@
           const sec = isNaN(v) || v <= 0 ? 5 : v;
           if (refreshHandle) clearInterval(refreshHandle);
           refreshHandle = setInterval(loadData, sec * 1000);
+
+          // NEW: nếu đang ở bans tab thì reset lại auto refresh bans
+          const viewBans = document.getElementById("bansView");
+          if (viewBans && !viewBans.classList.contains("hidden")) {
+            startBansAutoRefresh();
+          }
         }
         refreshInput.addEventListener("change", resetInterval);
         document
@@ -1400,9 +1565,16 @@
           if (e.target.id === "jsonModal") closeJsonModal();
         });
 
+        // Ban management
+        document
+          .getElementById("banRefreshBtn")
+          .addEventListener("click", loadBansAndRender);
+
         // Make events table headers clickable for sorting
-        document.querySelectorAll('thead th[data-col]').forEach((th) => {
-          th.addEventListener('click', () => setEventsSort(th.getAttribute('data-col')));
+        document.querySelectorAll("thead th[data-col]").forEach((th) => {
+          th.addEventListener("click", () =>
+            setEventsSort(th.getAttribute("data-col"))
+          );
         });
         // show initial sort indicator
         updateSortIndicators();
@@ -1411,6 +1583,122 @@
         loadData();
         resetInterval();
       });
+
+      // ====== BAN MANAGEMENT TAB ======
+      const BAN_API_BASE = "http://127.0.0.1:8001"; // backend
+      const BAN_API_TOKEN = ""; // nếu dùng token, set vào đây (hoặc bạn có thể hardcode)
+
+      function showBanToast(msg, ok = true) {
+        const el = document.getElementById("banToast");
+        el.className =
+          "text-xs px-4 py-2 rounded-xl border " +
+          (ok
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+            : "bg-red-500/10 border-red-500/30 text-red-200");
+        el.textContent = msg;
+        el.classList.remove("hidden");
+        setTimeout(() => el.classList.add("hidden"), 2500);
+      }
+
+      async function fetchBans() {
+        const headers = {};
+        if (BAN_API_TOKEN) headers["X-Auth-Token"] = BAN_API_TOKEN;
+
+        const resp = await fetch(BAN_API_BASE + "/api/bans", { headers });
+        if (!resp.ok) throw new Error("Failed to load bans: " + resp.status);
+        const data = await resp.json();
+        return data.items || [];
+      }
+
+      async function unbanIp(ip) {
+        const headers = { "Content-Type": "application/json" };
+        if (BAN_API_TOKEN) headers["X-Auth-Token"] = BAN_API_TOKEN;
+
+        const resp = await fetch(BAN_API_BASE + "/api/unban", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ ip }),
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok)
+          throw new Error(data.detail || "Unban failed: " + resp.status);
+        return data;
+      }
+
+      function renderBansTable(items) {
+        const tbody = document.getElementById("bansTableBody");
+        const q = (document.getElementById("banSearch").value || "")
+          .trim()
+          .toLowerCase();
+        tbody.innerHTML = "";
+
+        const filtered = items.filter(
+          (x) => !q || (x.ip || "").toLowerCase().includes(q)
+        );
+        if (filtered.length === 0) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td class="px-3 py-3 text-slate-400" colspan="3">No banned IPs found.</td>`;
+          tbody.appendChild(tr);
+          return;
+        }
+
+        for (const it of filtered) {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-900";
+          tr.innerHTML = `
+      <td class="px-3 py-2 font-mono text-slate-200">${it.ip || ""}</td>
+      <td class="px-3 py-2 text-slate-300">${it.meta || ""}</td>
+      <td class="px-3 py-2">
+        <button class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 text-[10px]">
+          Unban
+        </button>
+      </td>
+    `;
+          tr.querySelector("button").addEventListener("click", async () => {
+            if (!confirm(`Unban ${it.ip}?`)) return;
+            try {
+              const res = await unbanIp(it.ip);
+              showBanToast(
+                `Unbanned ${it.ip} (deleted_rules=${res.deleted_rules})`,
+                true
+              );
+              const bans = await fetchBans();
+              renderBansTable(bans);
+            } catch (e) {
+              showBanToast(String(e), false);
+            }
+          });
+          tbody.appendChild(tr);
+        }
+      }
+
+      async function loadBansAndRender(silent = false) {
+        try {
+          const bans = await fetchBans();
+          renderBansTable(bans);
+
+          // API lên lại thì reset cờ
+          banApiDownNotified = false;
+          if (!silent)
+            showBanToast(`Loaded ${bans.length} banned IP(s).`, true);
+        } catch (e) {
+          // chỉ toast 1 lần nếu auto-refresh mà API down
+          if (!silent && !banApiDownNotified) {
+            showBanToast(
+              "Ban API not reachable. Start ban_api.py first.",
+              false
+            );
+            banApiDownNotified = true;
+          } else if (silent && !banApiDownNotified) {
+            showBanToast(
+              "Ban API not reachable. Start ban_api.py first.",
+              false
+            );
+            banApiDownNotified = true;
+          }
+        }
+      }
     </script>
   </body>
 </html>
